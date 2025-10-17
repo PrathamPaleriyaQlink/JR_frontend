@@ -1,8 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Send, Bot, User, ArrowLeft } from "lucide-react";
+import { Send, Bot, User, ArrowLeft, Globe } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 
 const WS_BASE = "wss://api.vultr3.qlink.in/ws";
 const API_BASE = "https://api.vultr3.qlink.in";
@@ -11,6 +18,9 @@ export default function UserPage() {
   const [sessionId, setSessionId] = useState("");
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState("");
+  const [countryCode, setCountryCode] = useState("91");
+  const [countryFlag, setCountryFlag] = useState("🇮🇳");
+
   const wsRef = useRef(null);
   const chatEndRef = useRef(null);
 
@@ -24,7 +34,20 @@ export default function UserPage() {
     setSessionId(storedId);
   }, []);
 
-  // --- Fetch past chat history ---
+  // --- Fetch country info dynamically ---
+  useEffect(() => {
+    fetch("https://ipwho.is/")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.success) {
+          setCountryCode(data.calling_code);
+          setCountryFlag(data.flag?.emoji || "🌍");
+        }
+      })
+      .catch((err) => console.error("IP fetch error:", err));
+  }, []);
+
+  // --- Fetch chat history ---
   useEffect(() => {
     if (!sessionId) return;
 
@@ -33,9 +56,9 @@ export default function UserPage() {
       .then((data) => {
         if (data.chat_history) {
           const history = data.chat_history.map((msg) => ({
-            sender: msg.role === "user" ? "user" : "bot",
+            role: msg.role || "assistant",
             content: msg.content,
-            timestamp: new Date(msg.timestamp),
+            timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
           }));
           setMessages(history);
         }
@@ -43,42 +66,59 @@ export default function UserPage() {
       .catch((err) => console.error(err));
   }, [sessionId]);
 
-  // --- Connect WebSocket automatically ---
+  // --- WebSocket connection ---
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId || !countryCode) return;
 
-    const ws = new WebSocket(`${WS_BASE}/user/${sessionId}`);
+    const ws = new WebSocket(`${WS_BASE}/user/${sessionId}/${countryCode}`);
     wsRef.current = ws;
 
-    ws.onopen = () => console.log("User WebSocket connected ✅");
+    ws.onopen = () => console.log("WebSocket connected ✅");
+
     ws.onmessage = (e) => {
-      const data = e.data;
-      setMessages((prev) => [
-        ...prev,
-        { sender: "bot", content: data, timestamp: new Date() },
-      ]);
+      let data = e.data;
+      try {
+        const parsed = JSON.parse(data);
+        if (parsed.role && parsed.content) {
+          addMessage(parsed);
+          return;
+        }
+      } catch {
+        addMessage({ role: "assistant", content: data });
+      }
     };
-    ws.onclose = () => console.log("User WebSocket closed ❌");
+
+    ws.onclose = () => console.log("WebSocket closed ❌");
 
     return () => ws.close();
-  }, [sessionId]);
+  }, [sessionId, countryCode]);
 
-  // --- Auto-scroll to bottom on new message ---
+  const addMessage = (msg) => {
+    setMessages((prev) => [
+      ...prev,
+      { ...msg, timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date() },
+    ]);
+  };
+
+  // --- Auto scroll ---
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // --- Send message handler ---
+  // --- Send message ---
   const sendMessage = () => {
-    if (message.trim() === "") return;
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(message);
-      setMessages((prev) => [
-        ...prev,
-        { sender: "user", content: message, timestamp: new Date() },
-      ]);
-      setMessage("");
-    }
+    if (!message.trim() || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN)
+      return;
+
+    wsRef.current.send(message); // send raw text
+    addMessage({ role: "user", content: message });
+    setMessage("");
+  };
+
+  const roleStyles = {
+    user: "bg-primary text-primary-foreground rounded-br-sm",
+    assistant: "bg-muted border rounded-bl-sm",
+    agent: "bg-orange-500 text-white rounded-bl-sm",
   };
 
   return (
@@ -97,7 +137,23 @@ export default function UserPage() {
           </div>
         </div>
 
+        {/* Country Selector */}
         <div className="flex items-center gap-2">
+          <Globe className="w-4 h-4 text-muted-foreground" />
+          <Select value={countryCode} onValueChange={(val) => setCountryCode(val)}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="Select Country" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="91">🇮🇳 +91</SelectItem>
+              <SelectItem value="1">🇺🇸 +1</SelectItem>
+              <SelectItem value="44">🇬🇧 +44</SelectItem>
+              <SelectItem value="61">🇦🇺 +61</SelectItem>
+              <SelectItem value="971">🇦🇪 +971</SelectItem>
+            </SelectContent>
+          </Select>
+          <span className="text-sm">{countryFlag}</span>
+
           <Button
             variant="outline"
             size="sm"
@@ -107,11 +163,6 @@ export default function UserPage() {
             <ArrowLeft className="w-4 h-4" />
             Home
           </Button>
-
-          <div className="flex items-center gap-2 bg-muted px-4 py-2 rounded-lg border">
-            <Bot className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium">Connected</span>
-          </div>
         </div>
       </div>
 
@@ -134,20 +185,18 @@ export default function UserPage() {
               <div
                 key={i}
                 className={`flex ${
-                  msg.sender === "user" ? "justify-end" : "justify-start"
+                  msg.role === "user" ? "justify-end" : "justify-start"
                 }`}
               >
                 <div
                   className={`px-4 py-3 rounded-2xl max-w-[75%] shadow-sm ${
-                    msg.sender === "user"
-                      ? "bg-primary text-primary-foreground rounded-br-sm"
-                      : "bg-card border rounded-bl-sm"
+                    roleStyles[msg.role] || "bg-card border"
                   }`}
                 >
                   <p className="text-sm leading-relaxed">{msg.content}</p>
                   <p
                     className={`text-xs mt-1 ${
-                      msg.sender === "user"
+                      msg.role === "user"
                         ? "text-primary-foreground/70"
                         : "text-muted-foreground"
                     }`}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Home, Users, UserCheck, Send, Bot, ArrowLeft } from "lucide-react";
+import { Send, UserCheck, Bot, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,12 +10,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 
 const WS_BASE = "wss://api.vultr3.qlink.in/ws";
 const API_BASE = "https://api.vultr3.qlink.in";
 
-export default function Admin() {
-  const [selectedTab, setSelectedTab] = useState("active");
+export default function AdminActiveUsers() {
   const [activeUsers, setActiveUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedUserInfo, setSelectedUserInfo] = useState(null);
@@ -28,7 +28,7 @@ export default function Admin() {
   const agentSocket = useRef(null);
   const chatEndRef = useRef(null);
 
-  // Connect Admin WebSocket
+  // Admin WebSocket
   useEffect(() => {
     const ws = new WebSocket(`${WS_BASE}/admin`);
     ws.onopen = () => console.log("Admin WebSocket connected ✅");
@@ -43,7 +43,6 @@ export default function Admin() {
     return () => ws.close();
   }, []);
 
-  // Handle user selection
   const handleUserClick = (user) => {
     setSelectedUser(user.session_id);
     setSelectedUserInfo({
@@ -54,25 +53,47 @@ export default function Admin() {
     });
     setShowUserInfo(true);
 
-    // Fetch chat history
+    // Fetch previous chat history
     fetch(`${API_BASE}/chat_history/${user.session_id}`)
       .then((res) => res.json())
-      .then((data) => setChatHistory(data.chat_history || []))
+      .then((data) => {
+        const filtered = (data.chat_history || []).filter(
+          (msg) => msg.type !== "client_info"
+        );
+        setChatHistory(filtered);
+      })
       .catch((err) => console.error(err));
 
-    // Connect agent WebSocket
+    // Open agent WebSocket
     const ws = new WebSocket(`${WS_BASE}/agent/${user.session_id}`);
+
     ws.onmessage = (event) => {
-      let content = event.data;
       try {
         const parsed = JSON.parse(event.data);
-        content = parsed.content ?? event.data;
-      } catch {}
-      setChatHistory((prev) => [
-        ...prev,
-        { role: "user", content, timestamp: new Date() },
-      ]);
+
+        // Handle client info separately
+        if (parsed.type === "client_info") {
+          setSelectedUserInfo((prev) => ({ ...prev, ...parsed.data }));
+          return;
+        }
+
+        // Handle structured chat message { role, content }
+        if (parsed.role && parsed.content) {
+          setChatHistory((prev) => [
+            ...prev,
+            { ...parsed, timestamp: parsed.timestamp || new Date() },
+          ]);
+          return;
+        }
+      } catch {
+        // Fallback: treat as plain text from agent
+        setChatHistory((prev) => [
+          ...prev,
+          { role: "agent", content: event.data, timestamp: new Date() },
+        ]);
+      }
     };
+
     agentSocket.current = ws;
 
     return () => ws.close();
@@ -80,16 +101,19 @@ export default function Admin() {
 
   const sendMessage = () => {
     if (agentSocket.current && message.trim() !== "") {
+      const payload = { role: "agent", content: message };
       agentSocket.current.send(message);
+
       setChatHistory((prev) => [
         ...prev,
-        { role: "agent", content: message, timestamp: new Date() },
+        { ...payload, timestamp: new Date() },
       ]);
       setMessage("");
     }
   };
 
-  const toggleAI = async () => {
+  const toggleAiMode = async () => {
+    if (!selectedUser) return;
     const res = await fetch(`${API_BASE}/toggle/${selectedUser}`, {
       method: "POST",
     });
@@ -97,95 +121,58 @@ export default function Admin() {
     setIsAi(data.is_ai);
   };
 
-  // Scroll chat to bottom
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatHistory]);
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
+    <div className="flex flex-1 h-screen">
       {/* Sidebar */}
-      <div className="w-20 bg-card border-r flex flex-col items-center py-6">
-        <div className="mb-8 flex flex-col items-center">
-          <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-md mb-2">
-            <span className="text-primary-foreground font-bold text-lg">Q</span>
-          </div>
-          <div className="text-xs font-semibold text-muted-foreground">qlink-JR</div>
+      <div className="w-72 border-r bg-card overflow-hidden flex flex-col">
+        <div className="p-4 border-b">
+          <h2 className="font-semibold text-sm uppercase tracking-wide">
+            Active Users
+          </h2>
+          <p className="text-xs text-muted-foreground mt-1">
+            {activeUsers.length} {activeUsers.length === 1 ? "user" : "users"}{" "}
+            online
+          </p>
         </div>
-        <div className="flex-1 flex flex-col items-center space-y-4">
-          <Button
-            variant={selectedTab === "home" ? "default" : "ghost"}
-            size="icon"
-            onClick={() => setSelectedTab("home")}
-          >
-            <Home className="w-5 h-5" />
-          </Button>
-          <Button
-            variant={selectedTab === "active" ? "default" : "ghost"}
-            size="icon"
-            onClick={() => setSelectedTab("active")}
-          >
-            <UserCheck className="w-5 h-5" />
-          </Button>
-          <Button
-            variant={selectedTab === "users" ? "default" : "ghost"}
-            size="icon"
-            onClick={() => setSelectedTab("users")}
-          >
-            <Users className="w-5 h-5" />
-          </Button>
+        <div className="flex-1 overflow-y-auto p-3">
+          {activeUsers.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">
+              No active users
+            </div>
+          ) : (
+            activeUsers.map((user) => (
+              <Card
+                key={user.session_id}
+                className={`mb-2 cursor-pointer transition-all hover:shadow-md ${
+                  selectedUser === user.session_id
+                    ? "bg-muted shadow-md"
+                    : "hover:bg-muted/50"
+                }`}
+                onClick={() => handleUserClick(user)}
+              >
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-2 h-2 rounded-full ${
+                        selectedUser === user.session_id
+                          ? "bg-primary"
+                          : "bg-green-500"
+                      }`}
+                    />
+                    <span className="text-sm font-medium truncate">
+                      {user.session_id}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => (window.location.href = "/")}
-          title="Back to Landing Page"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
       </div>
-
-      {/* Active Users Sidebar */}
-      {selectedTab === "active" && (
-        <div className="w-72 border-r bg-card overflow-hidden flex flex-col">
-          <div className="p-4 border-b">
-            <h2 className="font-semibold text-sm uppercase tracking-wide">Active Users</h2>
-            <p className="text-xs text-muted-foreground mt-1">
-              {activeUsers.length} {activeUsers.length === 1 ? "user" : "users"} online
-            </p>
-          </div>
-          <div className="flex-1 overflow-y-auto p-3">
-            {activeUsers.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground text-sm">
-                No active users
-              </div>
-            ) : (
-              activeUsers.map((user) => (
-                <Card
-                  key={user.session_id}
-                  className={`mb-2 cursor-pointer transition-all hover:shadow-md ${
-                    selectedUser === user.session_id
-                      ? "bg-muted shadow-md"
-                      : "hover:bg-muted/50"
-                  }`}
-                  onClick={() => handleUserClick(user)}
-                >
-                  <CardContent className="p-3">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className={`w-2 h-2 rounded-full ${
-                          selectedUser === user.session_id ? "bg-primary" : "bg-green-500"
-                        }`}
-                      />
-                      <span className="text-sm font-medium truncate">{user.session_id}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Chat Area */}
       <div className="flex-1 flex flex-col bg-background">
@@ -200,7 +187,17 @@ export default function Admin() {
                   </span>
                 </div>
                 <div>
-                  <h2 className="font-semibold">{selectedUser}</h2>
+                  <h2 className="font-semibold flex items-center gap-2">
+                    {selectedUser}
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => setShowUserInfo(true)}
+                      className="p-0"
+                    >
+                      <Info className="w-4 h-4 text-muted-foreground" />
+                    </Button>
+                  </h2>
                   <p className="text-xs text-muted-foreground">
                     {selectedUserInfo?.country_code
                       ? `Country: +${selectedUserInfo.country_code}`
@@ -208,9 +205,16 @@ export default function Admin() {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 bg-muted px-4 py-2 rounded-lg border">
-                <Bot className={`w-4 h-4 ${isAi ? "text-primary" : "text-muted-foreground"}`} />
-                <span className="text-sm font-medium">{isAi ? "AI Mode" : "Manual"}</span>
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={isAi}
+                  onCheckedChange={toggleAiMode}
+                  className="flex items-center gap-2"
+                />
+                <div className="flex items-center gap-1 text-sm font-medium">
+                  <Bot className="w-4 h-4" />
+                  {isAi ? "AI Mode" : "Manual"}
+                </div>
               </div>
             </div>
 
@@ -222,7 +226,9 @@ export default function Admin() {
                     <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-3">
                       <Send className="w-8 h-8 text-muted-foreground" />
                     </div>
-                    <p className="text-muted-foreground text-sm">No messages yet</p>
+                    <p className="text-muted-foreground text-sm">
+                      No messages yet
+                    </p>
                   </div>
                 </div>
               ) : (
@@ -231,13 +237,17 @@ export default function Admin() {
                     <div
                       key={i}
                       className={`flex ${
-                        msg.role === "agent" ? "justify-end" : "justify-start"
+                        msg.role === "agent" || msg.role === "assistant"
+                          ? "justify-end"
+                          : "justify-start"
                       }`}
                     >
                       <div
                         className={`px-4 py-3 rounded-2xl max-w-[70%] shadow-sm ${
                           msg.role === "agent"
                             ? "bg-primary text-primary-foreground rounded-br-sm"
+                            : msg.role === "assistant"
+                            ? "bg-blue-400 text-white rounded-br-sm"
                             : "bg-card border rounded-bl-sm"
                         }`}
                       >
@@ -245,7 +255,7 @@ export default function Admin() {
                         {msg.timestamp && (
                           <p
                             className={`text-xs mt-1 ${
-                              msg.role === "agent"
+                              msg.role === "agent" || msg.role === "assistant"
                                 ? "text-primary-foreground/70"
                                 : "text-muted-foreground"
                             }`}
@@ -286,7 +296,9 @@ export default function Admin() {
               <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
                 <UserCheck className="w-10 h-10 text-muted-foreground" />
               </div>
-              <h3 className="text-lg font-semibold mb-2">No conversation selected</h3>
+              <h3 className="text-lg font-semibold mb-2">
+                No conversation selected
+              </h3>
               <p className="text-muted-foreground text-sm">
                 Select an active user from the sidebar to start chatting
               </p>
@@ -310,7 +322,8 @@ export default function Admin() {
                 <strong>Country Code:</strong> {selectedUserInfo.country_code}
               </p>
               <p>
-                <strong>AI Mode:</strong> {selectedUserInfo.is_ai ? "On" : "Off"}
+                <strong>AI Mode:</strong>{" "}
+                {selectedUserInfo.is_ai ? "On" : "Off"}
               </p>
               <p>
                 <strong>Chat History Length:</strong>{" "}
