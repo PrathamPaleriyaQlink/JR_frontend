@@ -11,6 +11,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 const WS_BASE = "wss://api.vultr3.qlink.in/ws";
 const API_BASE = "https://api.vultr3.qlink.in";
@@ -23,6 +25,8 @@ export default function AdminActiveUsers() {
   const [chatHistory, setChatHistory] = useState([]);
   const [message, setMessage] = useState("");
   const [isAi, setIsAi] = useState(true);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [loadingReply, setLoadingReply] = useState(false);
 
   const adminSocket = useRef(null);
   const agentSocket = useRef(null);
@@ -53,7 +57,8 @@ export default function AdminActiveUsers() {
     });
     setShowUserInfo(true);
 
-    // Fetch previous chat history
+    // Fetch chat history
+    setLoadingHistory(true);
     fetch(`${API_BASE}/chat_history/${user.session_id}`)
       .then((res) => res.json())
       .then((data) => {
@@ -62,35 +67,35 @@ export default function AdminActiveUsers() {
         );
         setChatHistory(filtered);
       })
-      .catch((err) => console.error(err));
+      .catch(console.error)
+      .finally(() => setLoadingHistory(false));
 
-    // Open agent WebSocket
+    // Agent WebSocket
     const ws = new WebSocket(`${WS_BASE}/agent/${user.session_id}`);
 
     ws.onmessage = (event) => {
       try {
         const parsed = JSON.parse(event.data);
 
-        // Handle client info separately
         if (parsed.type === "client_info") {
           setSelectedUserInfo((prev) => ({ ...prev, ...parsed.data }));
           return;
         }
 
-        // Handle structured chat message { role, content }
         if (parsed.role && parsed.content) {
           setChatHistory((prev) => [
             ...prev,
             { ...parsed, timestamp: parsed.timestamp || new Date() },
           ]);
+          setLoadingReply(false);
           return;
         }
       } catch {
-        // Fallback: treat as plain text from agent
         setChatHistory((prev) => [
           ...prev,
-          { role: "agent", content: event.data, timestamp: new Date() },
+          { role: "assistant", content: event.data, timestamp: new Date() },
         ]);
+        setLoadingReply(false);
       }
     };
 
@@ -103,22 +108,29 @@ export default function AdminActiveUsers() {
     if (agentSocket.current && message.trim() !== "") {
       const payload = { role: "agent", content: message };
       agentSocket.current.send(message);
-
       setChatHistory((prev) => [
         ...prev,
         { ...payload, timestamp: new Date() },
       ]);
       setMessage("");
+      setLoadingReply(true);
     }
   };
 
   const toggleAiMode = async () => {
     if (!selectedUser) return;
-    const res = await fetch(`${API_BASE}/toggle/${selectedUser}`, {
-      method: "POST",
-    });
-    const data = await res.json();
-    setIsAi(data.is_ai);
+    setLoadingReply(true);
+    try {
+      const res = await fetch(`${API_BASE}/toggle/${selectedUser}`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      setIsAi(data.is_ai);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingReply(false);
+    }
   };
 
   useEffect(() => {
@@ -206,11 +218,11 @@ export default function AdminActiveUsers() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Switch
-                  checked={isAi}
-                  onCheckedChange={toggleAiMode}
-                  className="flex items-center gap-2"
-                />
+                {loadingReply ? (
+                  <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Switch checked={isAi} onCheckedChange={toggleAiMode} />
+                )}
                 <div className="flex items-center gap-1 text-sm font-medium">
                   <Bot className="w-4 h-4" />
                   {isAi ? "AI Mode" : "Manual"}
@@ -220,7 +232,13 @@ export default function AdminActiveUsers() {
 
             {/* Chat Body */}
             <div className="flex-1 overflow-y-auto p-6 bg-muted/30">
-              {chatHistory.length === 0 ? (
+              {loadingHistory ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="animate-pulse text-muted-foreground text-sm">
+                    Loading chat history...
+                  </div>
+                </div>
+              ) : chatHistory.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
                     <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-3">
@@ -247,16 +265,18 @@ export default function AdminActiveUsers() {
                           msg.role === "agent"
                             ? "bg-primary text-primary-foreground rounded-br-sm"
                             : msg.role === "assistant"
-                            ? "bg-blue-400 text-white rounded-br-sm"
+                            ? "bg-gray-500 text-white rounded-br-sm"
                             : "bg-card border rounded-bl-sm"
                         }`}
                       >
-                        <p className="text-sm leading-relaxed">{msg.content}</p>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {msg.content}
+                        </ReactMarkdown>
                         {msg.timestamp && (
                           <p
                             className={`text-xs mt-1 ${
                               msg.role === "agent" || msg.role === "assistant"
-                                ? "text-primary-foreground/70"
+                                ? "text-white/70"
                                 : "text-muted-foreground"
                             }`}
                           >
@@ -269,6 +289,7 @@ export default function AdminActiveUsers() {
                       </div>
                     </div>
                   ))}
+
                   <div ref={chatEndRef} />
                 </div>
               )}

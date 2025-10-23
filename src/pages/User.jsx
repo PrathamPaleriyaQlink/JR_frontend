@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Send, Bot, User, ArrowLeft, Globe } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { Send, Bot, User, ArrowLeft, Globe, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectTrigger,
@@ -20,11 +21,12 @@ export default function UserPage() {
   const [message, setMessage] = useState("");
   const [countryCode, setCountryCode] = useState("91");
   const [countryFlag, setCountryFlag] = useState("🇮🇳");
+  const [loadingHistory, setLoadingHistory] = useState(true);
+  const [botTyping, setBotTyping] = useState(false);
 
   const wsRef = useRef(null);
   const chatEndRef = useRef(null);
 
-  // --- Create or get existing session ID ---
   useEffect(() => {
     let storedId = localStorage.getItem("session_id");
     if (!storedId) {
@@ -34,7 +36,6 @@ export default function UserPage() {
     setSessionId(storedId);
   }, []);
 
-  // --- Fetch country info dynamically ---
   useEffect(() => {
     fetch("https://ipwho.is/")
       .then((res) => res.json())
@@ -47,10 +48,9 @@ export default function UserPage() {
       .catch((err) => console.error("IP fetch error:", err));
   }, []);
 
-  // --- Fetch chat history ---
   useEffect(() => {
     if (!sessionId) return;
-
+    setLoadingHistory(true);
     fetch(`${API_BASE}/chat_history/${sessionId}`)
       .then((res) => res.json())
       .then((data) => {
@@ -63,10 +63,10 @@ export default function UserPage() {
           setMessages(history);
         }
       })
-      .catch((err) => console.error(err));
+      .catch((err) => console.error(err))
+      .finally(() => setLoadingHistory(false));
   }, [sessionId]);
 
-  // --- WebSocket connection ---
   useEffect(() => {
     if (!sessionId || !countryCode) return;
 
@@ -74,8 +74,8 @@ export default function UserPage() {
     wsRef.current = ws;
 
     ws.onopen = () => console.log("WebSocket connected ✅");
-
     ws.onmessage = (e) => {
+      setBotTyping(false);
       let data = e.data;
       try {
         const parsed = JSON.parse(data);
@@ -87,7 +87,6 @@ export default function UserPage() {
         addMessage({ role: "assistant", content: data });
       }
     };
-
     ws.onclose = () => console.log("WebSocket closed ❌");
 
     return () => ws.close();
@@ -100,25 +99,23 @@ export default function UserPage() {
     ]);
   };
 
-  // --- Auto scroll ---
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, botTyping]);
 
-  // --- Send message ---
   const sendMessage = () => {
     if (!message.trim() || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN)
       return;
-
-    wsRef.current.send(message); // send raw text
+    wsRef.current.send(message);
     addMessage({ role: "user", content: message });
     setMessage("");
+    setBotTyping(true);
   };
 
   const roleStyles = {
     user: "bg-primary text-primary-foreground rounded-br-sm",
-    assistant: "bg-muted border rounded-bl-sm",
-    agent: "bg-orange-500 text-white rounded-bl-sm",
+    assistant: "bg-muted border rounded-bl-sm prose prose-sm dark:prose-invert",
+    agent: "bg-gray-500 text-white rounded-bl-sm",
   };
 
   return (
@@ -137,7 +134,6 @@ export default function UserPage() {
           </div>
         </div>
 
-        {/* Country Selector */}
         <div className="flex items-center gap-2">
           <Globe className="w-4 h-4 text-muted-foreground" />
           <Select value={countryCode} onValueChange={(val) => setCountryCode(val)}>
@@ -168,7 +164,11 @@ export default function UserPage() {
 
       {/* Chat Body */}
       <div className="flex-1 overflow-y-auto p-6 bg-muted/30">
-        {messages.length === 0 ? (
+        {loadingHistory ? (
+          <div className="flex items-center justify-center h-full">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : messages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
               <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-3">
@@ -193,7 +193,11 @@ export default function UserPage() {
                     roleStyles[msg.role] || "bg-card border"
                   }`}
                 >
-                  <p className="text-sm leading-relaxed">{msg.content}</p>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                  >
+                    {msg.content}
+                  </ReactMarkdown>
                   <p
                     className={`text-xs mt-1 ${
                       msg.role === "user"
@@ -209,6 +213,17 @@ export default function UserPage() {
                 </div>
               </div>
             ))}
+
+            {botTyping && (
+              <div className="flex justify-start">
+                <div className="px-4 py-3 rounded-2xl bg-muted border shadow-sm flex items-center gap-1">
+                  <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                  <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                  <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce"></span>
+                </div>
+              </div>
+            )}
+
             <div ref={chatEndRef} />
           </div>
         )}
@@ -225,7 +240,11 @@ export default function UserPage() {
             className="flex-1"
           />
           <Button onClick={sendMessage} size="icon" className="shadow-md">
-            <Send className="w-4 h-4" />
+            {botTyping ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
           </Button>
         </div>
       </div>
