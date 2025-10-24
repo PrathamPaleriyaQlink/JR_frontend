@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 
 const WS_BASE = "wss://api.vultr3.qlink.in/ws";
-const API_BASE = "https://api.vultr3.qlink.in";
+const API_BASE = "https://api.vultr3.qlink.in/api/web";
 
 export default function UserPage() {
   const [sessionId, setSessionId] = useState("");
@@ -23,6 +23,7 @@ export default function UserPage() {
   const [countryFlag, setCountryFlag] = useState("🇮🇳");
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [botTyping, setBotTyping] = useState(false);
+  const [agentTyping, setAgentTyping] = useState(false);
 
   const wsRef = useRef(null);
   const chatEndRef = useRef(null);
@@ -77,14 +78,24 @@ export default function UserPage() {
     ws.onmessage = (e) => {
       setBotTyping(false);
       let data = e.data;
-      try {
-        const parsed = JSON.parse(data);
-        if (parsed.role && parsed.content) {
-          addMessage(parsed);
-          return;
+      const parsed = JSON.parse(data);
+
+      setAgentTyping(false)
+      setBotTyping(false)
+
+      if (parsed.type === "typing") {
+        if (parsed.from === "assistant") {
+          setBotTyping(parsed.is_typing);
+        } else if  (parsed.from === "agent") {
+          setAgentTyping(parsed.is_typing);
         }
-      } catch {
-        addMessage({ role: "assistant", content: data });
+
+        return;
+      }
+
+      if (parsed.type === "message") {
+        addMessage({ role: parsed.from, content: parsed.content });
+        return;
       }
     };
     ws.onclose = () => console.log("WebSocket closed ❌");
@@ -95,7 +106,10 @@ export default function UserPage() {
   const addMessage = (msg) => {
     setMessages((prev) => [
       ...prev,
-      { ...msg, timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date() },
+      {
+        ...msg,
+        timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
+      },
     ]);
   };
 
@@ -104,12 +118,51 @@ export default function UserPage() {
   }, [messages, botTyping]);
 
   const sendMessage = () => {
-    if (!message.trim() || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN)
+    if (
+      !message.trim() ||
+      !wsRef.current ||
+      wsRef.current.readyState !== WebSocket.OPEN
+    )
       return;
-    wsRef.current.send(message);
+    wsRef.current.send(
+      JSON.stringify({
+        type: "message",
+        from: "user",
+        content: message,
+      })
+    );
     addMessage({ role: "user", content: message });
     setMessage("");
-    setBotTyping(true);
+  };
+
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    setMessage(value);
+
+    if (
+      !wsRef.current ||
+      wsRef.current.readyState !== WebSocket.OPEN
+    )
+      return;
+
+    if (value.trim() === "") {
+      wsRef.current.send(
+        JSON.stringify({
+          type: "typing",
+          from: "user",
+          is_typing: false,
+        })
+      );
+      return;
+    }
+    
+    wsRef.current.send(
+      JSON.stringify({
+        type: "typing",
+        from: "user",
+        is_typing: true,
+      })
+    );
   };
 
   const roleStyles = {
@@ -136,7 +189,10 @@ export default function UserPage() {
 
         <div className="flex items-center gap-2">
           <Globe className="w-4 h-4 text-muted-foreground" />
-          <Select value={countryCode} onValueChange={(val) => setCountryCode(val)}>
+          <Select
+            value={countryCode}
+            onValueChange={(val) => setCountryCode(val)}
+          >
             <SelectTrigger className="w-[120px]">
               <SelectValue placeholder="Select Country" />
             </SelectTrigger>
@@ -193,23 +249,10 @@ export default function UserPage() {
                     roleStyles[msg.role] || "bg-card border"
                   }`}
                 >
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                  >
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {msg.content}
                   </ReactMarkdown>
-                  <p
-                    className={`text-xs mt-1 ${
-                      msg.role === "user"
-                        ? "text-primary-foreground/70"
-                        : "text-muted-foreground"
-                    }`}
-                  >
-                    {new Date(msg.timestamp).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </p>
+                  
                 </div>
               </div>
             ))}
@@ -220,6 +263,16 @@ export default function UserPage() {
                   <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
                   <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
                   <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce"></span>
+                </div>
+              </div>
+            )}
+
+            {agentTyping && (
+              <div className="flex justify-start">
+                <div className="px-4 py-3 rounded-2xl bg-gray-400 border shadow-sm flex items-center gap-1">
+                  <span className="w-2 h-2 bg-white/50 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                  <span className="w-2 h-2 bg-white/50 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                  <span className="w-2 h-2 bg-white/50 rounded-full animate-bounce"></span>
                 </div>
               </div>
             )}
@@ -235,7 +288,7 @@ export default function UserPage() {
           <Input
             placeholder="Type a message..."
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={handleInputChange}
             onKeyDown={(e) => e.key === "Enter" && sendMessage()}
             className="flex-1"
           />

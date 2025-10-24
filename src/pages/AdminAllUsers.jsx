@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { UserCheck, Loader2 } from "lucide-react";
+import { UserCheck, Loader2, ChevronLeft, ChevronRight, Menu } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
@@ -12,13 +12,16 @@ import { Button } from "@/components/ui/button";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-const API_BASE = "https://api.vultr3.qlink.in";
+const API_BASE = "https://api.vultr3.qlink.in/api/web";
 
 export default function AdminAllUsers() {
   const [allUsers, setAllUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedUserData, setSelectedUserData] = useState(null);
   const [showUserInfo, setShowUserInfo] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(true);
+  const [loadingUserData, setLoadingUserData] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const chatEndRef = useRef(null);
 
   useEffect(() => {
@@ -34,30 +37,59 @@ export default function AdminAllUsers() {
       .finally(() => setLoadingUsers(false));
   }, []);
 
+  useEffect(() => {
+    if (!selectedUser) return;
+    
+    setLoadingUserData(true);
+    setSelectedUserData(null);
+    
+    fetch(`${API_BASE}/users/${selectedUser.session_id}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data) setSelectedUserData(data);
+        else setSelectedUserData(null);
+      })
+      .catch(console.error)
+      .finally(() => setLoadingUserData(false));
+  }, [selectedUser]);
+
   const handleUserClick = (user) => {
     setSelectedUser(user);
-    setShowUserInfo(true);
   };
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [selectedUser]);
+    if (selectedUserData?.chat_history) {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [selectedUserData]);
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed(!sidebarCollapsed);
+  };
 
   return (
-    <div className="flex flex-1 h-screen">
+    <div className="flex flex-1 h-screen relative">
       {/* Users Sidebar */}
-      <div className="w-72 border-r bg-card overflow-hidden flex flex-col">
+      <div
+        className={`${
+          sidebarCollapsed ? "w-0" : "w-72"
+        } border-r bg-card overflow-hidden flex flex-col transition-all duration-300 ease-in-out`}
+      >
         <div className="p-4 border-b">
-          <h2 className="font-semibold text-sm uppercase tracking-wide">
-            All Users
-          </h2>
-          <p className="text-xs text-muted-foreground mt-1">
-            {loadingUsers
-              ? "Loading..."
-              : `${allUsers.length} ${
-                  allUsers.length === 1 ? "user" : "users"
-                }`}
-          </p>
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <h2 className="font-semibold text-sm uppercase tracking-wide">
+                All Users
+              </h2>
+              <p className="text-xs text-muted-foreground mt-1">
+                {loadingUsers
+                  ? "Loading..."
+                  : `${allUsers.length} ${
+                      allUsers.length === 1 ? "user" : "users"
+                    }`}
+              </p>
+            </div>
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto p-3">
           {loadingUsers ? (
@@ -69,15 +101,23 @@ export default function AdminAllUsers() {
             allUsers.map((user) => (
               <Card
                 key={user.session_id}
-                className="mb-2 cursor-pointer transition-all hover:shadow-md hover:bg-muted/50"
+                className={`mb-2 cursor-pointer transition-all duration-200 hover:shadow-md hover:bg-muted/50 ${
+                  selectedUser?.session_id === user.session_id
+                    ? "ring-2 ring-primary bg-muted/50"
+                    : ""
+                }`}
                 onClick={() => handleUserClick(user)}
               >
-                <CardContent className="p-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-green-500" />
-                    <span className="text-sm font-medium truncate">
-                      {user.session_id}
-                    </span>
+                <CardContent className="px-3 py-2">
+                  <div className="flex flex-col items-start">
+                    <div className="font-medium">
+                      {user.user_name || "Unknown User"}
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-500 font-mono truncate">
+                        {user.session_id}
+                      </span>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -90,10 +130,26 @@ export default function AdminAllUsers() {
         </div>
       </div>
 
+      {/* Toggle Sidebar Button */}
+      <button
+        onClick={toggleSidebar}
+        className="absolute left-0 top-30 z-10 bg-card border border-l-0 rounded-r-lg p-2 hover:bg-muted/50 transition-all duration-200 shadow-md"
+        style={{
+          transform: sidebarCollapsed ? "translateX(0)" : "translateX(288px)",
+          transition: "transform 0.3s ease-in-out",
+        }}
+      >
+        {sidebarCollapsed ? (
+          <ChevronRight className="w-4 h-4" />
+        ) : (
+          <ChevronLeft className="w-4 h-4" />
+        )}
+      </button>
+
       {/* Chat Area */}
-      <div className="flex-1 flex flex-col bg-background p-6">
+      <div className="flex-1 flex flex-col bg-background p-6 overflow-hidden">
         {!selectedUser ? (
-          <div className="flex-1 flex items-center justify-center bg-muted/30">
+          <div className="flex-1 flex items-center justify-center bg-muted/30 rounded-lg">
             <div className="text-center">
               <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
                 <UserCheck className="w-10 h-10 text-muted-foreground" />
@@ -104,31 +160,79 @@ export default function AdminAllUsers() {
               </p>
             </div>
           </div>
-        ) : (
+        ) : loadingUserData ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-primary" />
+              <p className="text-sm text-muted-foreground">
+                Loading user data...
+              </p>
+            </div>
+          </div>
+        ) : selectedUserData ? (
           <>
-            <h2 className="font-semibold mb-2">
-              User: {selectedUser.session_id}
-            </h2>
-            <p className="text-sm text-muted-foreground mb-4">
-              AI Mode: {selectedUser.is_ai ? "On" : "Off"} | Created:{" "}
-              {new Date(selectedUser.created_at.$date).toLocaleString()}
-            </p>
+            <div className="border-b pb-4 mb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="font-semibold text-lg">
+                    {selectedUserData.user_name || "Unknown User"}
+                  </h2>
+                  <p className="text-sm text-muted-foreground font-mono">
+                    {selectedUserData.session_id}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowUserInfo(true)}
+                >
+                  View Details
+                </Button>
+              </div>
+              <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
+                <span>
+                  AI Mode:{" "}
+                  <span className="font-medium">
+                    {selectedUserData.is_ai ? "On" : "Off"}
+                  </span>
+                </span>
+                <span>
+                  Created:{" "}
+                  <span className="font-medium">
+                    {new Date(
+                      selectedUserData.created_at.$date || selectedUserData.created_at
+                    ).toLocaleString()}
+                  </span>
+                </span>
+                <span>
+                  Messages:{" "}
+                  <span className="font-medium">
+                    {selectedUserData.chat_history.length}
+                  </span>
+                </span>
+              </div>
+            </div>
 
-            <div className="flex-1 overflow-y-auto space-y-4 w-full">
-              {selectedUser.chat_history.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No messages yet</p>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 w-full">
+              {selectedUserData.chat_history.length === 0 ? (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-sm text-muted-foreground">
+                    No messages yet
+                  </p>
+                </div>
               ) : (
-                selectedUser.chat_history.map((msg, i) => (
+                selectedUserData.chat_history.map((msg, i) => (
                   <div
                     key={i}
                     className={`flex ${
                       msg.role === "agent" || msg.role === "assistant"
                         ? "justify-end"
                         : "justify-start"
-                    }`}
+                    } animate-in fade-in slide-in-from-bottom-2 duration-300`}
+                    style={{ animationDelay: `${i * 50}ms` }}
                   >
                     <div
-                      className={`px-4 py-3 rounded-2xl max-w-[70%] shadow-sm ${
+                      className={`px-4 py-3 rounded-2xl max-w-[70%] shadow-sm transition-all duration-200 hover:shadow-md ${
                         msg.role === "agent"
                           ? "bg-primary text-primary-foreground rounded-br-sm"
                           : msg.role === "assistant"
@@ -147,7 +251,7 @@ export default function AdminAllUsers() {
                               : "text-muted-foreground"
                           }`}
                         >
-                          {new Date(msg.timestamp.$date).toLocaleTimeString(
+                          {new Date(msg.timestamp.$date || msg.timestamp).toLocaleTimeString(
                             [],
                             { hour: "2-digit", minute: "2-digit" }
                           )}
@@ -160,31 +264,55 @@ export default function AdminAllUsers() {
               <div ref={chatEndRef} />
             </div>
           </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <p className="text-muted-foreground">
+                Failed to load user data
+              </p>
+            </div>
+          </div>
         )}
       </div>
 
       {/* User Info Dialog */}
-      {selectedUser && (
+      {selectedUserData && (
         <Dialog open={showUserInfo} onOpenChange={setShowUserInfo}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>User Info</DialogTitle>
+              <DialogTitle>User Details</DialogTitle>
             </DialogHeader>
-            <div className="space-y-2">
-              <p>
-                <strong>Session ID:</strong> {selectedUser.session_id}
-              </p>
-              <p>
-                <strong>AI Mode:</strong> {selectedUser.is_ai ? "On" : "Off"}
-              </p>
-              <p>
-                <strong>Created At:</strong>{" "}
-                {new Date(selectedUser.created_at.$date).toLocaleString()}
-              </p>
-              <p>
-                <strong>Chat History Length:</strong>{" "}
-                {selectedUser.chat_history.length}
-              </p>
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-sm font-medium">User Name:</span>
+                <span className="text-sm col-span-2">
+                  {selectedUserData.user_name || "Unknown User"}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-sm font-medium">Session ID:</span>
+                <span className="text-sm font-mono col-span-2 break-all">
+                  {selectedUserData.session_id}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-sm font-medium">AI Mode:</span>
+                <span className="text-sm col-span-2">
+                  {selectedUserData.is_ai ? "On" : "Off"}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-sm font-medium">Created:</span>
+                <span className="text-sm col-span-2">
+                  {new Date(selectedUserData.created_at.$date || selectedUserData.created_at).toLocaleString()}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-sm font-medium">Messages:</span>
+                <span className="text-sm col-span-2">
+                  {selectedUserData.chat_history.length}
+                </span>
+              </div>
             </div>
             <DialogFooter>
               <Button onClick={() => setShowUserInfo(false)}>Close</Button>
