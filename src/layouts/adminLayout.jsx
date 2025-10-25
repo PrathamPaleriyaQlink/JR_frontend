@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { Home, Users, UserCheck, ArrowLeft, HomeIcon } from "lucide-react";
+import { Home, Users, UserCheck, ArrowLeft, HomeIcon, LogOutIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function AdminLayout() {
@@ -43,7 +43,7 @@ export default function AdminLayout() {
           onClick={() => (window.location.href = "/")}
           title="Back to Landing Page"
         >
-          <HomeIcon className="w-5 h-5" />
+          <LogOutIcon className="w-5 h-5" />
         </Button>
       </div>
 

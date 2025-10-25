@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
-import { UserCheck, Loader2, ChevronLeft, ChevronRight, Menu } from "lucide-react";
+import {
+  UserCheck,
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+  Menu,
+} from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
@@ -39,10 +45,10 @@ export default function AdminAllUsers() {
 
   useEffect(() => {
     if (!selectedUser) return;
-    
+
     setLoadingUserData(true);
     setSelectedUserData(null);
-    
+
     fetch(`${API_BASE}/users/${selectedUser.session_id}`)
       .then((res) => res.json())
       .then((data) => {
@@ -114,7 +120,10 @@ export default function AdminAllUsers() {
                       {user.user_name || "Unknown User"}
                     </div>
                     <div>
-                      <span className="text-xs text-gray-500 font-mono truncate">
+                      <span
+                        className="text-xs text-gray-500 font-mono truncate max-w-[220px] block"
+                        title={user.session_id}
+                      >
                         {user.session_id}
                       </span>
                     </div>
@@ -200,7 +209,8 @@ export default function AdminAllUsers() {
                   Created:{" "}
                   <span className="font-medium">
                     {new Date(
-                      selectedUserData.created_at.$date || selectedUserData.created_at
+                      selectedUserData.created_at.$date ||
+                        selectedUserData.created_at
                     ).toLocaleString()}
                   </span>
                 </span>
@@ -251,10 +261,12 @@ export default function AdminAllUsers() {
                               : "text-muted-foreground"
                           }`}
                         >
-                          {new Date(msg.timestamp.$date || msg.timestamp).toLocaleTimeString(
-                            [],
-                            { hour: "2-digit", minute: "2-digit" }
-                          )}
+                          {new Date(
+                            msg.timestamp.$date || msg.timestamp
+                          ).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
                         </p>
                       )}
                     </div>
@@ -267,9 +279,7 @@ export default function AdminAllUsers() {
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
-              <p className="text-muted-foreground">
-                Failed to load user data
-              </p>
+              <p className="text-muted-foreground">Failed to load user data</p>
             </div>
           </div>
         )}
@@ -304,7 +314,10 @@ export default function AdminAllUsers() {
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-sm font-medium">Created:</span>
                 <span className="text-sm col-span-2">
-                  {new Date(selectedUserData.created_at.$date || selectedUserData.created_at).toLocaleString()}
+                  {new Date(
+                    selectedUserData.created_at.$date ||
+                      selectedUserData.created_at
+                  ).toLocaleString()}
                 </span>
               </div>
               <div className="grid grid-cols-3 gap-2">

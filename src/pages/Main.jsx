@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 const Main = () => {
   return (
     <div className="w-full h-[100svh] flex flex-col items-center justify-center gap-5">
-      <div className="text-3xl font-semibold">Qlink - JR</div>
+      <div className="text-3xl font-semibold">Clara - JR</div>
       <div className="my-10 space-y-3">
         <div className="w-64">
           <Link to="/user">
@@ -25,7 +25,7 @@ const Main = () => {
           </Link>
         </div>
       </div>
-      <div className="fixed bottom-5 text-sm text-gray-500">v 0.3.0</div>
+      <div className="fixed bottom-5 text-sm text-gray-500">v 0.3.1</div>
     </div>
   );
 };
