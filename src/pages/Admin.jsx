@@ -108,9 +108,9 @@ export default function Admin() {
       <div className="w-20 bg-card border-r flex flex-col items-center py-6">
         <div className="mb-8 flex flex-col items-center">
           <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-md mb-2">
-            <span className="text-primary-foreground font-bold text-lg">Q</span>
+            <span className="text-primary-foreground font-bold text-lg">JR</span>
           </div>
-          <div className="text-xs font-semibold text-muted-foreground">qlink-JR</div>
+          <div className="text-xs font-semibold text-muted-foreground">JaipurRugs</div>
         </div>
         <div className="flex-1 flex flex-col items-center space-y-4">
           <Button

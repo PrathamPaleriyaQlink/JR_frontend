@@ -51,7 +51,7 @@ export default function AdminHome() {
         {/* Header */}
         <div className="flex flex-col space-y-2 mb-4">
           <h1 className="text-4xl font-semibold text-foreground tracking-tight">
-            Clara-JR Admin Dashboard
+            JaipurRugs Admin Dashboard
           </h1>
         </div>
 
