@@ -6,6 +6,7 @@ import AdminLayout from "./layouts/adminLayout";
 import AdminHome from "./pages/AdminHome";
 import AdminActiveUsers from "./pages/AdminActiveUsers";
 import AdminAllUsers from "./pages/AdminAllUsers";
+import AdminKnowledgeBase from "./pages/AdminKnowledgeBase";
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
             <Route index element={<AdminHome />} /> 
             <Route path="active" element={<AdminActiveUsers />} />
             <Route path="users" element={<AdminAllUsers />} />
+            <Route path="kb" element={<AdminKnowledgeBase />} />
           </Route>
         </Routes>
       </BrowserRouter>

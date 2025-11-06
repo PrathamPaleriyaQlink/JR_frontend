@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { Home, Users, UserCheck, ArrowLeft, HomeIcon, LogOutIcon } from "lucide-react";
+import { Home, Users, UserCheck, ArrowLeft, HomeIcon, LogOutIcon, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function AdminLayout() {
@@ -33,6 +33,11 @@ export default function AdminLayout() {
           <Link to="/admin/users">
             <Button variant={getTabVariant("/admin/users")} size="icon">
               <Users className="w-5 h-5" />
+            </Button>
+          </Link>
+          <Link to="/admin/kb">
+            <Button variant={getTabVariant("/admin/kb")} size="icon">
+              <Brain className="w-5 h-5" />
             </Button>
           </Link>
         </div>
