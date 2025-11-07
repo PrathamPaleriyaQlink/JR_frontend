@@ -11,6 +11,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const WS_BASE = "wss://api.vultr3.qlink.in/ws";
 const API_BASE = "https://api.vultr3.qlink.in/api/web";
@@ -205,6 +206,8 @@ export default function UserPage() {
             </SelectContent>
           </Select>
           <span className="text-sm">{countryFlag}</span>
+
+          <ThemeToggle/>
 
           <Button
             variant="outline"

@@ -25,7 +25,7 @@ const Main = () => {
           </Link>
         </div>
       </div>
-      <div className="fixed bottom-5 text-sm text-gray-500">v 0.3.2</div>
+      <div className="fixed bottom-5 text-sm text-gray-500">v 0.4.0</div>
     </div>
   );
 };

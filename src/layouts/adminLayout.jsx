@@ -2,6 +2,7 @@ import React from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { Home, Users, UserCheck, ArrowLeft, HomeIcon, LogOutIcon, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function AdminLayout() {
   const location = useLocation();
@@ -12,7 +13,7 @@ export default function AdminLayout() {
   return (
     <div className="flex h-screen bg-background text-foreground">
       {/* Sidebar */}
-      <div className="w-20 bg-card border-r flex flex-col items-center py-6">
+      <div className="w-20 bg-card border-r flex flex-col items-center py-6 gap-3">
         <div className="mb-8 flex flex-col items-center">
           <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-md mb-2">
             <span className="text-primary-foreground font-bold text-lg">JR</span>
@@ -42,6 +43,8 @@ export default function AdminLayout() {
             </Button>
           </Link>
         </div>
+
+        <ThemeToggle/>
 
         <Button
           variant="outline"
