@@ -22,9 +22,9 @@ import { Loader2, Plus, Pencil, Trash2 } from "lucide-react";
 
 const API_BASE = "https://api.vultr3.qlink.in/api/web";
 
-export default function AdminKnowledgeBase() {
+export default function KnowledgeBase() {
   const [records, setRecords] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -33,81 +33,81 @@ export default function AdminKnowledgeBase() {
   const [editRecordText, setEditRecordText] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
 
-  const fetchRecords = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_BASE}/kb/all`);
-      const data = await res.json();
-      setRecords(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+//   const fetchRecords = async () => {
+//     setLoading(true);
+//     try {
+//       const res = await fetch(`${API_BASE}/kb/all`);
+//       const data = await res.json();
+//       setRecords(Array.isArray(data) ? data : []);
+//     } catch (err) {
+//       console.error(err);
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
 
-  useEffect(() => {
-    fetchRecords();
-  }, []);
+//   useEffect(() => {
+//     fetchRecords();
+//   }, []);
 
   const handleAdd = async () => {
-    setActionLoading(true);
-    try {
-      await fetch(`${API_BASE}/kb/add`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ record: newRecord }),
-      });
-      setShowAddDialog(false);
-      setNewRecord("");
-      await fetchRecords();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setActionLoading(false);
-    }
+    // setActionLoading(true);
+    // try {
+    //   await fetch(`${API_BASE}/kb/add`, {
+    //     method: "POST",
+    //     headers: { "Content-Type": "application/json" },
+    //     body: JSON.stringify({ record: newRecord }),
+    //   });
+    //   setShowAddDialog(false);
+    //   setNewRecord("");
+    //   await fetchRecords();
+    // } catch (err) {
+    //   console.error(err);
+    // } finally {
+    //   setActionLoading(false);
+    // }
   };
 
   const handleDelete = async () => {
-    setActionLoading(true);
-    try {
-      await fetch(`${API_BASE}/kb/${selectedRecord.id}`, {
-        method: "DELETE",
-      });
-      setShowDeleteDialog(false);
-      setSelectedRecord(null);
-      await fetchRecords();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setActionLoading(false);
-    }
+    // setActionLoading(true);
+    // try {
+    //   await fetch(`${API_BASE}/kb/${selectedRecord.id}`, {
+    //     method: "DELETE",
+    //   });
+    //   setShowDeleteDialog(false);
+    //   setSelectedRecord(null);
+    //   await fetchRecords();
+    // } catch (err) {
+    //   console.error(err);
+    // } finally {
+    //   setActionLoading(false);
+    // }
   };
 
   const handleEdit = async () => {
-    if (!selectedRecord) return;
-    setActionLoading(true);
-    try {
-      await fetch(`${API_BASE}/kb/${selectedRecord.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ record: editRecordText }),
-      });
-      setShowEditDialog(false);
-      setSelectedRecord(null);
-      setEditRecordText("");
-      await fetchRecords();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setActionLoading(false);
-    }
+    // if (!selectedRecord) return;
+    // setActionLoading(true);
+    // try {
+    //   await fetch(`${API_BASE}/kb/${selectedRecord.id}`, {
+    //     method: "PUT",
+    //     headers: { "Content-Type": "application/json" },
+    //     body: JSON.stringify({ record: editRecordText }),
+    //   });
+    //   setShowEditDialog(false);
+    //   setSelectedRecord(null);
+    //   setEditRecordText("");
+    //   await fetchRecords();
+    // } catch (err) {
+    //   console.error(err);
+    // } finally {
+    //   setActionLoading(false);
+    // }
   };
 
   return (
     <div className="p-6 flex flex-col gap-6 bg-background min-h-screen">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold tracking-tight">Self Learned Knowledge Base</h2>
+        <h2 className="text-xl font-semibold tracking-tight">Knowledge Base</h2>
         <Button onClick={() => setShowAddDialog(true)}>
           <Plus className="w-4 h-4 mr-2" />
           Add Record

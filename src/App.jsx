@@ -7,6 +7,9 @@ import AdminHome from "./pages/AdminHome";
 import AdminActiveUsers from "./pages/AdminActiveUsers";
 import AdminAllUsers from "./pages/AdminAllUsers";
 import AdminKnowledgeBase from "./pages/AdminKnowledgeBase";
+import KBLayout from "./layouts/KBLayout";
+import KnowledgeBase from "./pages/KnowledgeBase";
+import SystemPrompt from "./pages/SystemPrompt";
 
 function App() {
   return (
@@ -19,7 +22,12 @@ function App() {
             <Route index element={<AdminHome />} /> 
             <Route path="active" element={<AdminActiveUsers />} />
             <Route path="users" element={<AdminAllUsers />} />
-            <Route path="kb" element={<AdminKnowledgeBase />} />
+
+            <Route path="kb" element={<KBLayout />}>
+              <Route index element={<SystemPrompt />} />
+              <Route path="self" element={<AdminKnowledgeBase />} />
+              <Route path="kb" element={<KnowledgeBase />} />
+            </Route>
           </Route>
         </Routes>
       </BrowserRouter>

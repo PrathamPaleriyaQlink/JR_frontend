@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 export default function AdminLayout() {
   const location = useLocation();
 
-  const getTabVariant = (path) => (location.pathname === path ? "default" : "ghost");
+  const getTabVariant = (path) => (location.pathname.startsWith(path) ? "default" : "ghost");
+  const getTabVariant1 = (path) => (location.pathname === path ? "default" : "ghost");
 
   return (
     <div className="flex h-screen bg-background text-foreground">
@@ -21,7 +22,7 @@ export default function AdminLayout() {
 
         <div className="flex-1 flex flex-col items-center space-y-4">
           <Link to="/admin">
-            <Button variant={getTabVariant("/admin")} size="icon">
+            <Button variant={getTabVariant1("/admin")} size="icon">
               <Home className="w-5 h-5" />
             </Button>
           </Link>
