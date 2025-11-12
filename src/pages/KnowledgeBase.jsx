@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -33,75 +37,75 @@ export default function KnowledgeBase() {
   const [editRecordText, setEditRecordText] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
 
-//   const fetchRecords = async () => {
-//     setLoading(true);
-//     try {
-//       const res = await fetch(`${API_BASE}/kb/all`);
-//       const data = await res.json();
-//       setRecords(Array.isArray(data) ? data : []);
-//     } catch (err) {
-//       console.error(err);
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
+  const fetchRecords = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/kb/all/general`);
+      const data = await res.json();
+      setRecords(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-//   useEffect(() => {
-//     fetchRecords();
-//   }, []);
+  useEffect(() => {
+    fetchRecords();
+  }, []);
 
   const handleAdd = async () => {
-    // setActionLoading(true);
-    // try {
-    //   await fetch(`${API_BASE}/kb/add`, {
-    //     method: "POST",
-    //     headers: { "Content-Type": "application/json" },
-    //     body: JSON.stringify({ record: newRecord }),
-    //   });
-    //   setShowAddDialog(false);
-    //   setNewRecord("");
-    //   await fetchRecords();
-    // } catch (err) {
-    //   console.error(err);
-    // } finally {
-    //   setActionLoading(false);
-    // }
+    setActionLoading(true);
+    try {
+      await fetch(`${API_BASE}/kb/add`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ record: newRecord, lable: "general" }),
+      });
+      setShowAddDialog(false);
+      setNewRecord("");
+      await fetchRecords();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const handleDelete = async () => {
-    // setActionLoading(true);
-    // try {
-    //   await fetch(`${API_BASE}/kb/${selectedRecord.id}`, {
-    //     method: "DELETE",
-    //   });
-    //   setShowDeleteDialog(false);
-    //   setSelectedRecord(null);
-    //   await fetchRecords();
-    // } catch (err) {
-    //   console.error(err);
-    // } finally {
-    //   setActionLoading(false);
-    // }
+    setActionLoading(true);
+    try {
+      await fetch(`${API_BASE}/kb/${selectedRecord.id}`, {
+        method: "DELETE",
+      });
+      setShowDeleteDialog(false);
+      setSelectedRecord(null);
+      await fetchRecords();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const handleEdit = async () => {
-    // if (!selectedRecord) return;
-    // setActionLoading(true);
-    // try {
-    //   await fetch(`${API_BASE}/kb/${selectedRecord.id}`, {
-    //     method: "PUT",
-    //     headers: { "Content-Type": "application/json" },
-    //     body: JSON.stringify({ record: editRecordText }),
-    //   });
-    //   setShowEditDialog(false);
-    //   setSelectedRecord(null);
-    //   setEditRecordText("");
-    //   await fetchRecords();
-    // } catch (err) {
-    //   console.error(err);
-    // } finally {
-    //   setActionLoading(false);
-    // }
+    if (!selectedRecord) return;
+    setActionLoading(true);
+    try {
+      await fetch(`${API_BASE}/kb/${selectedRecord.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ record: editRecordText, lable: "general" }),
+      });
+      setShowEditDialog(false);
+      setSelectedRecord(null);
+      setEditRecordText("");
+      await fetchRecords();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   return (
@@ -146,16 +150,16 @@ export default function KnowledgeBase() {
                       <Popover>
                         <PopoverTrigger asChild>
                           <div className="cursor-pointer truncate">
-                            {rec.metadata}
+                            {rec.metadata?.text}
                           </div>
                         </PopoverTrigger>
                         <PopoverContent className="w-[400px] p-3 text-sm text-muted-foreground">
-                          {rec.metadata}
+                          {rec.metadata?.text}
                         </PopoverContent>
                       </Popover>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {new Date(rec.created_at).toLocaleString()}
+                      {new Date(rec.metadata?.created_at).toLocaleString()}
                     </TableCell>
                     <TableCell className="text-right space-x-2">
                       <Button
@@ -163,7 +167,7 @@ export default function KnowledgeBase() {
                         variant="outline"
                         onClick={() => {
                           setSelectedRecord(rec);
-                          setEditRecordText(rec.metadata);
+                          setEditRecordText(rec.metadata?.text);
                           setShowEditDialog(true);
                         }}
                       >

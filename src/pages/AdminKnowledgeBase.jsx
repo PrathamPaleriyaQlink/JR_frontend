@@ -36,8 +36,9 @@ export default function AdminKnowledgeBase() {
   const fetchRecords = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/kb/all`);
+      const res = await fetch(`${API_BASE}/kb/all/agent`);
       const data = await res.json();
+      console.log(data)
       setRecords(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
@@ -56,7 +57,7 @@ export default function AdminKnowledgeBase() {
       await fetch(`${API_BASE}/kb/add`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ record: newRecord }),
+        body: JSON.stringify({ record: newRecord, lable: "agent" }),
       });
       setShowAddDialog(false);
       setNewRecord("");
@@ -91,7 +92,7 @@ export default function AdminKnowledgeBase() {
       await fetch(`${API_BASE}/kb/${selectedRecord.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ record: editRecordText }),
+        body: JSON.stringify({ record: editRecordText, lable: "agent" }),
       });
       setShowEditDialog(false);
       setSelectedRecord(null);
@@ -146,16 +147,16 @@ export default function AdminKnowledgeBase() {
                       <Popover>
                         <PopoverTrigger asChild>
                           <div className="cursor-pointer truncate">
-                            {rec.metadata}
+                            {rec.metadata?.text}
                           </div>
                         </PopoverTrigger>
                         <PopoverContent className="w-[400px] p-3 text-sm text-muted-foreground">
-                          {rec.metadata}
+                          {rec.metadata?.text}
                         </PopoverContent>
                       </Popover>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {new Date(rec.created_at).toLocaleString()}
+                      {new Date(rec.metadata?.created_at).toLocaleString()}
                     </TableCell>
                     <TableCell className="text-right space-x-2">
                       <Button
@@ -163,7 +164,7 @@ export default function AdminKnowledgeBase() {
                         variant="outline"
                         onClick={() => {
                           setSelectedRecord(rec);
-                          setEditRecordText(rec.metadata);
+                          setEditRecordText(rec.metadata?.text);
                           setShowEditDialog(true);
                         }}
                       >
