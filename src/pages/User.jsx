@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Send, Bot, User, ArrowLeft, Globe, Loader2 } from "lucide-react";
+import { Send, Bot, User, ArrowLeft, Globe, Loader2, UserStarIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -81,13 +81,13 @@ export default function UserPage() {
       let data = e.data;
       const parsed = JSON.parse(data);
 
-      setAgentTyping(false)
-      setBotTyping(false)
+      setAgentTyping(false);
+      setBotTyping(false);
 
       if (parsed.type === "typing") {
         if (parsed.from === "assistant") {
           setBotTyping(parsed.is_typing);
-        } else if  (parsed.from === "agent") {
+        } else if (parsed.from === "agent") {
           setAgentTyping(parsed.is_typing);
         }
 
@@ -140,11 +140,7 @@ export default function UserPage() {
     const value = e.target.value;
     setMessage(value);
 
-    if (
-      !wsRef.current ||
-      wsRef.current.readyState !== WebSocket.OPEN
-    )
-      return;
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
     if (value.trim() === "") {
       wsRef.current.send(
@@ -156,7 +152,7 @@ export default function UserPage() {
       );
       return;
     }
-    
+
     wsRef.current.send(
       JSON.stringify({
         type: "typing",
@@ -207,7 +203,7 @@ export default function UserPage() {
           </Select>
           <span className="text-sm">{countryFlag}</span>
 
-          <ThemeToggle/>
+          <ThemeToggle />
 
           <Button
             variant="outline"
@@ -243,10 +239,26 @@ export default function UserPage() {
             {messages.map((msg, i) => (
               <div
                 key={i}
-                className={`flex ${
+                className={`flex items-end gap-2 ${
                   msg.role === "user" ? "justify-end" : "justify-start"
                 }`}
               >
+                {msg.role !== "user" && (
+                  <div className="w-10 h-10 flex-shrink-0">
+                    {msg.role === "assistant" ? (
+                      <img
+                        src="/ai_avatar.webp"
+                        alt="assistant"
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-gray-500 flex items-center justify-center text-white">
+                        <UserStarIcon className="w-5 h-5" />
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div
                   className={`px-4 py-3 rounded-2xl max-w-[75%] shadow-sm ${
                     roleStyles[msg.role] || "bg-card border"
@@ -255,11 +267,15 @@ export default function UserPage() {
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {msg.content}
                   </ReactMarkdown>
-                  
                 </div>
+
+                {msg.role === "user" && (
+                  <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center flex-shrink-0">
+                    <User className="w-5 h-5" />
+                  </div>
+                )}
               </div>
             ))}
-
             {botTyping && (
               <div className="flex justify-start">
                 <div className="px-4 py-3 rounded-2xl bg-muted border shadow-sm flex items-center gap-1">
