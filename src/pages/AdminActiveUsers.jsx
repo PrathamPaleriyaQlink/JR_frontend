@@ -46,6 +46,8 @@ export default function AdminActiveUsers() {
   const [botTyping, setBotTyping] = useState(false);
   const [agentTyping, setAgentTyping] = useState(false);
 
+  const [hasHandshaked, setHasHandshaked] = useState(false);
+
   // Admin WebSocket
   useEffect(() => {
     const ws = new WebSocket(`${WS_BASE}/admin`);
@@ -131,7 +133,7 @@ export default function AdminActiveUsers() {
       .finally(() => setLoadingHistory(false));
 
     // Agent WebSocket connection
-    const ws = new WebSocket(`${WS_BASE}/agent/${user.session_id}`);
+    const ws = new WebSocket(`${WS_BASE}/agent/${user.session_id}/test_emp`);
 
     ws.onopen = () => {
       console.log(`Agent WebSocket connected for ${user.session_id}`);
@@ -141,9 +143,9 @@ export default function AdminActiveUsers() {
       try {
         const parsed = JSON.parse(event.data);
 
-        setAgentTyping(false)
-        setBotTyping(false)
-        setUserTyping(false)
+        setAgentTyping(false);
+        setBotTyping(false);
+        setUserTyping(false);
 
         if (parsed.type === "typing") {
           if (parsed.from === "user") {
@@ -197,6 +199,22 @@ export default function AdminActiveUsers() {
   };
 
   const sendMessage = () => {
+    if (isAi) {
+      alert("Turn off AI mode to start sending messages.");
+      return;
+    }
+    
+    // 🔥 FIRST message → do handshake
+    if (!hasHandshaked) {
+      agentSocket.current.send(
+        JSON.stringify({
+          type: "handshake",
+          name: "test_name",
+        })
+      );
+      setHasHandshaked(true);
+    }
+
     if (
       !agentSocket.current ||
       agentSocket.current.readyState !== WebSocket.OPEN
@@ -231,15 +249,15 @@ export default function AdminActiveUsers() {
   const toggleAiMode = async () => {
     if (!selectedUser) return;
 
-    const previousState = isAi;
-    setIsAi(!isAi); // Optimistic update
+    const prev = isAi;
+    setIsAi(!isAi);
 
     try {
       const res = await fetch(`${API_BASE}/toggle/${selectedUser}`, {
         method: "POST",
       });
 
-      if (!res.ok) throw new Error("Failed to toggle AI mode");
+      if (!res.ok) throw new Error("Failed");
 
       const data = await res.json();
       setIsAi(data.is_ai);
@@ -247,9 +265,11 @@ export default function AdminActiveUsers() {
       if (selectedUserInfo) {
         setSelectedUserInfo((prev) => ({ ...prev, is_ai: data.is_ai }));
       }
+
+      // 🔥 When AI turns OFF → allow handshake again
+      if (!data.is_ai) setHasHandshaked(false);
     } catch (err) {
-      console.error("Error toggling AI mode:", err);
-      setIsAi(previousState); // Revert on error
+      setIsAi(prev);
     }
   };
 
@@ -536,25 +556,26 @@ export default function AdminActiveUsers() {
 
             {/* Chat Input */}
             <div className="border-t p-4 bg-card shadow-lg">
+              {isAi && (
+                <p className="text-xs text-red-500 mb-2">
+                  Turn off AI mode to start sending messages.
+                </p>
+              )}
               <div className="max-w-4xl mx-auto flex items-center gap-3">
                 <Input
                   placeholder="Type a message..."
                   value={message}
-                  onChange={handleInputChange}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      sendMessage();
-                    }
+                  onChange={(e) => {
+                    if (!isAi) handleInputChange(e); // 🔥 disable typing when AI ON
                   }}
+                  disabled={loadingReply || isAi}
                   className="flex-1"
-                  disabled={loadingReply}
                 />
                 <Button
                   onClick={sendMessage}
                   size="icon"
                   className="shadow-md flex-shrink-0"
-                  disabled={loadingReply || !message.trim()}
+                  disabled={loadingReply || !message.trim() || isAi}
                 >
                   {loadingReply ? (
                     <Loader2 className="w-4 h-4 animate-spin" />

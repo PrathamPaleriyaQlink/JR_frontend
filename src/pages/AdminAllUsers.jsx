@@ -117,7 +117,10 @@ export default function AdminAllUsers() {
                 <CardContent className="px-3 py-2">
                   <div className="flex flex-col items-start">
                     <div className="font-medium">
-                      {user.user_name || "Unknown User"}
+                      {(user.user_name
+                        ? user.user_name.charAt(0).toUpperCase() + user.user_name.slice(1)
+                        : user.session_id.split("@")[0]
+                      )}
                     </div>
                     <div>
                       <span
