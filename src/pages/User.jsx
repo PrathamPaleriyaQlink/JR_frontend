@@ -43,11 +43,19 @@ export default function UserPage() {
   const chatEndRef = useRef(null);
 
   const handleUserSubmit = () => {
-    if (!userName.trim() || !userEmail.trim()) return;
+    if (!userName.trim() || !userEmail.trim()) {
+      return;
+    }
 
+    // basic email check
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(userEmail)) {
+      alert("Please enter a valid email");
+      return;
+    }
+
+    setUserEmail(userEmail.toLowerCase())
     setSessionId(userEmail);
-
-    // No localStorage — purely in-session
     setShowUserDialog(false);
   };
 
