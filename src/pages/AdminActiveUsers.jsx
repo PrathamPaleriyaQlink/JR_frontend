@@ -370,12 +370,13 @@ export default function AdminActiveUsers() {
             </div>
           ) : (
             activeUsers.map((user) => (
-              <Card
+              <div
                 key={user.session_id}
-                className={`mb-2 cursor-pointer transition-all duration-200 hover:shadow-md ${
+                className={`cursor-pointer border-b border-black/10 py-1 transition-all duration-300 
+                hover:bg-primary/10  ${
                   selectedUser === user.session_id
-                    ? "ring-2 ring-primary bg-muted/50 shadow-md"
-                    : "hover:bg-muted/50"
+                    ? "bg-muted/50 border-l-4 border-l-primary"
+                    : ""
                 }`}
                 onClick={() => handleUserClick(user)}
               >
@@ -398,7 +399,7 @@ export default function AdminActiveUsers() {
                     </p>
                   )}
                 </CardContent>
-              </Card>
+              </div>
             ))
           )}
         </div>
@@ -555,7 +556,7 @@ export default function AdminActiveUsers() {
             </div>
 
             {/* Chat Input */}
-            <div className="border-t p-4 bg-card shadow-lg">
+            <div className="border-t p-4 text-center bg-card shadow-lg">
               {isAi && (
                 <p className="text-xs text-red-500 mb-2">
                   Turn off AI mode to start sending messages.
@@ -565,6 +566,7 @@ export default function AdminActiveUsers() {
                 <Input
                   placeholder="Type a message..."
                   value={message}
+                  onKeyDown={(e) => e.key === "Enter" && sendMessage()}
                   onChange={(e) => {
                     if (!isAi) handleInputChange(e); // 🔥 disable typing when AI ON
                   }}

@@ -1,10 +1,20 @@
 import React from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Users, UserCheck, Keyboard, Clock, MapPin, Palette } from "lucide-react";
+import {
+  Users,
+  UserCheck,
+  Keyboard,
+  Clock,
+  MapPin,
+  Palette,
+  Bell,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Separator } from "@/components/ui/separator";
+import { useAlerts } from "@/contexts/AlertContext";
 
 export default function AdminHome() {
+  const { alerts } = useAlerts();
   const navigate = useNavigate();
 
   const mainCards = [
@@ -49,13 +59,29 @@ export default function AdminHome() {
     <div className="flex-1 px-10 py-12 bg-gradient-to-b from-muted/40 to-muted/20 min-h-screen">
       <div className="max-w-7xl mx-auto space-y-12">
         {/* Header */}
-        <div className="flex flex-col space-y-2 mb-4">
-          <h1 className="text-4xl font-semibold text-foreground tracking-tight">
-            JaipurRugs Admin Dashboard
-          </h1>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col">
+            <h1 className="text-4xl font-semibold text-foreground tracking-tight">
+              JaipurRugs Admin Dashboard
+            </h1>
+          </div>
+
+          {/* Bell Icon */}
+          <button
+            onClick={() => navigate("/admin/alerts")}
+            className="relative p-3 rounded-xl bg-muted hover:bg-accent/20 transition-all border border-border"
+          >
+            <Bell className="h-6 w-6 text-foreground" />
+
+            {alerts.length > 0 && (
+              <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-[10px] flex items-center justify-center rounded-full">
+                {alerts.length}
+              </span>
+            )}
+          </button>
         </div>
 
-        <Separator/>
+        <Separator />
 
         {/* Main Cards */}
         <section>
