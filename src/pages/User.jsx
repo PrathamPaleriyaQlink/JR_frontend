@@ -9,6 +9,7 @@ import {
   Globe,
   Loader2,
   UserStarIcon,
+  Paperclip,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ export default function UserPage() {
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [botTyping, setBotTyping] = useState(false);
   const [agentTyping, setAgentTyping] = useState(false);
+  const [uplaodImgLoading, setUploadImgLoading] = useState(false);
 
   // NEW STATES - NOT STORED ANYWHERE
   const [showUserDialog, setShowUserDialog] = useState(true);
@@ -54,7 +56,7 @@ export default function UserPage() {
       return;
     }
 
-    setUserEmail(userEmail.toLowerCase())
+    setUserEmail(userEmail.toLowerCase());
     setSessionId(userEmail);
     setShowUserDialog(false);
   };
@@ -173,6 +175,57 @@ export default function UserPage() {
 
     addMessage({ role: "user", content: message });
     setMessage("");
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploadImgLoading(true);
+
+    try {
+      const res = await fetch(
+        `${API_BASE}/get-upload-url?filename=${encodeURIComponent(
+          file.name
+        )}&email=${sessionId}`
+      );
+      const { upload_url, final_url } = await res.json();
+
+      const upload = await fetch(upload_url, {
+        method: "PUT",
+        body: file,
+        headers: {
+          "Content-Type": file.type,
+        },
+      });
+
+      if (!upload.ok) throw new Error("Upload failed");
+
+      // ❗ ONLY CHECK WS STATUS — NO message.trim()
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        console.log("WS not ready");
+        return;
+      }
+
+      // 🔥 SEND IMAGE MESSAGE
+      wsRef.current.send(
+        JSON.stringify({
+          type: "message",
+          from: "user",
+          content: `![image](${final_url})`,
+        })
+      );
+
+      // UI MESSAGE
+      addMessage({ role: "user", content: `![image](${final_url})` });
+    } catch (err) {
+      console.error("Image upload error:", err);
+    } finally {
+      setUploadImgLoading(false);
+
+      // 👇 IMPORTANT FIX
+      e.target.value = "";
+    }
   };
 
   const handleInputChange = (e) => {
@@ -338,6 +391,11 @@ export default function UserPage() {
 
                 {botTyping && (
                   <div className="flex justify-start">
+                    <img
+                      src="/ai_avatar.webp"
+                      alt="assistant"
+                      className="w-10 h-10 rounded-full object-cover mr-2"
+                    />
                     <div className="px-4 py-3 rounded-2xl bg-muted border shadow-sm flex items-center gap-1">
                       <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
                       <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
@@ -348,6 +406,9 @@ export default function UserPage() {
 
                 {agentTyping && (
                   <div className="flex justify-start">
+                    <div className="w-10 h-10 rounded-full bg-gray-500 flex items-center justify-center text-white mr-2">
+                      <UserStarIcon className="w-5 h-5" />
+                    </div>
                     <div className="px-4 py-3 rounded-2xl bg-gray-400 border shadow-sm flex items-center gap-1">
                       <span className="w-2 h-2 bg-white/50 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
                       <span className="w-2 h-2 bg-white/50 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
@@ -371,6 +432,27 @@ export default function UserPage() {
                 onKeyDown={(e) => e.key === "Enter" && sendMessage()}
                 className="flex-1"
               />
+              <div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  id="imageInput"
+                  onChange={handleImageUpload}
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => document.getElementById("imageInput").click()}
+                  className="shadow-md"
+                >
+                  {uplaodImgLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Paperclip />
+                  )}
+                </Button>
+              </div>
               <Button onClick={sendMessage} size="icon" className="shadow-md">
                 {botTyping ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
