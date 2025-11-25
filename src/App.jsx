@@ -12,34 +12,37 @@ import KnowledgeBase from "./pages/KnowledgeBase";
 import SystemPrompt from "./pages/SystemPrompt";
 import AdminAlerts from "./pages/AdminAlerts";
 import { AlertProvider } from "./contexts/AlertContext";
+import AdminLogin from "./pages/AdminLogin";
+import { AdminProvider } from "./contexts/AdminContext";
 
 function App() {
   return (
     <>
-      <AlertProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Main />} />
-            <Route path="/user" element={<UserPage />} />
+      <AdminProvider>
+        <AlertProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<AdminLogin />} />
+              <Route path="/user" element={<UserPage />} />
+              <Route path="/admin" element={<AdminLayout />}>
+                <Route index element={<AdminHome />} />
+                <Route path="active" element={<AdminActiveUsers />} />
+                <Route path="users" element={<AdminAllUsers />} />
+                <Route path="alerts" element={<AdminAlerts />} />
 
-            <Route path="/admin" element={<AdminLayout />}>
-              <Route index element={<AdminHome />} />
-              <Route path="active" element={<AdminActiveUsers />} />
-              <Route path="users" element={<AdminAllUsers />} />
-              <Route path="alerts" element={<AdminAlerts />} />
-
-              <Route path="kb" element={<KBLayout />}>
-                <Route index element={<SystemPrompt />} />
-                <Route path="self" element={<AdminKnowledgeBase />} />
-                <Route path="kb" element={<KnowledgeBase />} />
+                <Route path="kb" element={<KBLayout />}>
+                  <Route index element={<SystemPrompt />} />
+                  <Route path="self" element={<AdminKnowledgeBase />} />
+                  <Route path="kb" element={<KnowledgeBase />} />
+                </Route>
               </Route>
-            </Route>
 
-            {/* 404 */}
-            <Route path="*" element={<Main />} />
-          </Routes>
-        </BrowserRouter>
-      </AlertProvider>
+              {/* 404 */}
+              <Route path="*" element={<AdminLogin />} />
+            </Routes>
+          </BrowserRouter>
+        </AlertProvider>
+      </AdminProvider>
     </>
   );
 }

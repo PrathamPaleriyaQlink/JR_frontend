@@ -22,6 +22,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useAdmin } from "@/contexts/AdminContext";
 
 const WS_BASE = "wss://api.vultr3.qlink.in/ws";
 const API_BASE = "https://api.vultr3.qlink.in/api/web";
@@ -49,6 +50,8 @@ export default function AdminActiveUsers() {
 
   const [hasHandshaked, setHasHandshaked] = useState(false);
   const [uplaodImgLoading, setUploadImgLoading] = useState(false);
+
+  const { employeeData } = useAdmin();
 
   // Admin WebSocket
   useEffect(() => {
@@ -135,7 +138,7 @@ export default function AdminActiveUsers() {
       .finally(() => setLoadingHistory(false));
 
     // Agent WebSocket connection
-    const ws = new WebSocket(`${WS_BASE}/agent/${user.session_id}/test_emp`);
+    const ws = new WebSocket(`${WS_BASE}/agent/${user.session_id}/${employeeData.empId}`);
 
     ws.onopen = () => {
       console.log(`Agent WebSocket connected for ${user.session_id}`);
@@ -211,7 +214,7 @@ export default function AdminActiveUsers() {
       agentSocket.current.send(
         JSON.stringify({
           type: "handshake",
-          name: "test_name",
+          name: employeeData.empName,
         })
       );
       setHasHandshaked(true);

@@ -4,6 +4,8 @@ import { Home, Users, UserCheck, LogOutIcon, Brain, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useAlerts } from "@/contexts/AlertContext";
+import { useAdmin } from "@/contexts/AdminContext";
+import { useNavigate } from "react-router-dom";
 
 export default function AdminLayout() {
   const location = useLocation();
@@ -11,7 +13,16 @@ export default function AdminLayout() {
 
   const [showBanner, setShowBanner] = React.useState(false);
 
-  // auto hide banner
+  const { employeeData } = useAdmin();
+  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    if (!employeeData || !employeeData.empId) {
+      navigate("/");
+    }
+  }, [employeeData, navigate]);
+
+
   React.useEffect(() => {
     if (alerts.length > 0) {
       setShowBanner(true);
@@ -74,7 +85,11 @@ export default function AdminLayout() {
 
         {/* 🔔 Alerts Button In Sidebar */}
         <Link to="/admin/alerts" className="relative">
-          <Button variant={getTabVariant("/admin/alerts")} className={"bg-red-100 hover:bg-red-200 cursor-pointer"} size="icon">
+          <Button
+            variant={getTabVariant("/admin/alerts")}
+            className={"bg-red-100 hover:bg-red-200 cursor-pointer"}
+            size="icon"
+          >
             <Bell className="w-7 h-7 text-red-800" />
           </Button>
 
