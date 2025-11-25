@@ -180,8 +180,19 @@ export default function UserPage() {
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        console.log("WS not ready");
+        return;
+    }
 
     setUploadImgLoading(true);
+    wsRef.current.send(
+      JSON.stringify({
+        type: "typing",
+        from: "user",
+        is_typing: true,
+      })
+    );
 
     try {
       const res = await fetch(
@@ -201,11 +212,6 @@ export default function UserPage() {
 
       if (!upload.ok) throw new Error("Upload failed");
 
-      // ❗ ONLY CHECK WS STATUS — NO message.trim()
-      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-        console.log("WS not ready");
-        return;
-      }
 
       // 🔥 SEND IMAGE MESSAGE
       wsRef.current.send(

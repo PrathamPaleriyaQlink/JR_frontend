@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
+  Paperclip,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +48,7 @@ export default function AdminActiveUsers() {
   const [agentTyping, setAgentTyping] = useState(false);
 
   const [hasHandshaked, setHasHandshaked] = useState(false);
+  const [uplaodImgLoading, setUploadImgLoading] = useState(false);
 
   // Admin WebSocket
   useEffect(() => {
@@ -203,7 +205,7 @@ export default function AdminActiveUsers() {
       alert("Turn off AI mode to start sending messages.");
       return;
     }
-    
+
     // 🔥 FIRST message → do handshake
     if (!hasHandshaked) {
       agentSocket.current.send(
@@ -322,6 +324,86 @@ export default function AdminActiveUsers() {
         is_typing: true,
       })
     );
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploadImgLoading(true);
+    
+    // 🔥 FIRST message → do handshake
+    if (!hasHandshaked) {
+      agentSocket.current.send(
+        JSON.stringify({
+          type: "handshake",
+          name: "test_name",
+        })
+      );
+      setHasHandshaked(true);
+    }
+
+    agentSocket.current.send(
+      JSON.stringify({
+        type: "typing",
+        from: "agent",
+        is_typing: true,
+      })
+    );
+
+    try {
+      const res = await fetch(
+        `${API_BASE}/get-upload-url?filename=${encodeURIComponent(
+          file.name
+        )}&email=${selectedUser}`
+      );
+      const { upload_url, final_url } = await res.json();
+
+      const upload = await fetch(upload_url, {
+        method: "PUT",
+        body: file,
+        headers: {
+          "Content-Type": file.type,
+        },
+      });
+
+      if (!upload.ok) throw new Error("Upload failed");
+
+      // ❗ ONLY CHECK WS STATUS — NO message.trim()
+      if (
+        !agentSocket.current ||
+        agentSocket.current.readyState !== WebSocket.OPEN
+      ) {
+        console.log("WS not ready");
+        return;
+      }
+
+      // 🔥 SEND IMAGE MESSAGE
+      agentSocket.current.send(
+        JSON.stringify({
+          type: "message",
+          from: "agent",
+          content: `![image](${final_url})`,
+        })
+      );
+
+      // UI MESSAGE
+      setChatHistory((prev) => [
+        ...prev,
+        {
+          role: "agent",
+          content: `![image](${final_url})`,
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+    } catch (err) {
+      console.error("Image upload error:", err);
+    } finally {
+      setUploadImgLoading(false);
+
+      // 👇 IMPORTANT FIX
+      e.target.value = "";
+    }
   };
 
   return (
@@ -573,6 +655,30 @@ export default function AdminActiveUsers() {
                   disabled={loadingReply || isAi}
                   className="flex-1"
                 />
+                <div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={uplaodImgLoading || isAi}
+                    id="imageInput"
+                    onChange={handleImageUpload}
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    disabled={uplaodImgLoading || isAi}
+                    onClick={() =>
+                      document.getElementById("imageInput").click()
+                    }
+                  >
+                    {uplaodImgLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Paperclip />
+                    )}
+                  </Button>
+                </div>
                 <Button
                   onClick={sendMessage}
                   size="icon"
