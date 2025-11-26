@@ -9,6 +9,7 @@ export default function KBLayout() {
     { label: "Prompt", path: "/admin/kb" },
     { label: "Self Learned KB", path: "/admin/kb/self" },
     { label: "Knowledge Base", path: "/admin/kb/kb" },
+    { label: "Search KB", path: "/admin/kb/search" },
   ];
 
   const getVariant = (path) =>

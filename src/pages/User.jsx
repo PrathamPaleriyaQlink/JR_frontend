@@ -105,7 +105,7 @@ export default function UserPage() {
   useEffect(() => {
     if (!sessionId || !countryCode || showUserDialog) return;
 
-    const ws = new WebSocket(`${WS_BASE}/user/${userEmail}/${countryCode}`);
+    const ws = new WebSocket(`${WS_BASE}/user/${userEmail}/${countryCode}/${userName}`);
     wsRef.current = ws;
 
     ws.onopen = () => console.log("WebSocket connected ✅");

@@ -74,7 +74,7 @@ export function LoginForm({ className, ...props }) {
       <FieldGroup>
         <div className="flex flex-col items-center gap-1 text-center">
           <img
-            src={isDark ? "/logo.webp" : "/logoLight.webp"}
+            src={"/logo.webp"}
             className="w-34"
           />
           <h1 className="text-2xl font-bold">Support Chatbot</h1>

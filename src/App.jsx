@@ -14,6 +14,7 @@ import AdminAlerts from "./pages/AdminAlerts";
 import { AlertProvider } from "./contexts/AlertContext";
 import AdminLogin from "./pages/AdminLogin";
 import { AdminProvider } from "./contexts/AdminContext";
+import KBSearch from "./pages/KBSearch";
 
 function App() {
   return (
@@ -34,6 +35,7 @@ function App() {
                   <Route index element={<SystemPrompt />} />
                   <Route path="self" element={<AdminKnowledgeBase />} />
                   <Route path="kb" element={<KnowledgeBase />} />
+                  <Route path="search" element={<KBSearch />} />
                 </Route>
               </Route>
 
