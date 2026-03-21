@@ -25,6 +25,17 @@ import ThemeToggle from "@/components/ThemeToggle";
 const WS_BASE = "wss://api.vultr3.qlink.in/ws";
 const API_BASE = "https://api.vultr3.qlink.in/api/web";
 
+const markdownComponents = {
+  img: ({ src, alt }) => (
+    <img
+      src={src}
+      alt={alt || "chat image"}
+      className="mt-2 w-full max-w-[420px] max-h-[420px] h-auto object-contain rounded-lg border"
+      loading="lazy"
+    />
+  ),
+};
+
 export default function UserPage() {
   const [sessionId, setSessionId] = useState("");
   const [messages, setMessages] = useState([]);
@@ -35,6 +46,7 @@ export default function UserPage() {
   const [botTyping, setBotTyping] = useState(false);
   const [agentTyping, setAgentTyping] = useState(false);
   const [uplaodImgLoading, setUploadImgLoading] = useState(false);
+  const [isSocketConnected, setIsSocketConnected] = useState(false);
 
   // NEW STATES - NOT STORED ANYWHERE
   const [showUserDialog, setShowUserDialog] = useState(true);
@@ -56,8 +68,9 @@ export default function UserPage() {
       return;
     }
 
-    setUserEmail(userEmail.toLowerCase());
-    setSessionId(userEmail);
+    const normalizedEmail = userEmail.trim().toLowerCase();
+    setUserEmail(normalizedEmail);
+    setSessionId(normalizedEmail);
     setShowUserDialog(false);
   };
 
@@ -69,25 +82,16 @@ export default function UserPage() {
   }, [showUserDialog]);
 
   useEffect(() => {
-    if (showUserDialog) return;
-
-    fetch("https://ipwho.is/")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data?.success) {
-          setCountryCode(data.calling_code);
-          setCountryFlag(data.flag?.emoji || "🌍");
-        }
-      })
-      .catch(() => {});
-  }, [showUserDialog]);
-
-  useEffect(() => {
     if (!sessionId) return;
     setLoadingHistory(true);
 
-    fetch(`${API_BASE}/chat_history/${userEmail}`)
-      .then((res) => res.json())
+    fetch(`${API_BASE}/chat_history/${encodeURIComponent(sessionId)}`)
+      .then((res) => {
+        if (res.status === 404) {
+          return { chat_history: [] };
+        }
+        return res.json();
+      })
       .then((data) => {
         if (data.chat_history) {
           const history = data.chat_history.map((msg) => ({
@@ -105,11 +109,26 @@ export default function UserPage() {
   useEffect(() => {
     if (!sessionId || !countryCode || showUserDialog) return;
 
-    const ws = new WebSocket(`${WS_BASE}/user/${userEmail}/${countryCode}/${userName}`);
-    wsRef.current = ws;
+    let reconnectTimer;
+    let attempts = 0;
+    let shouldReconnect = true;
 
-    ws.onopen = () => console.log("WebSocket connected ✅");
-    ws.onmessage = (e) => {
+    const connectSocket = () => {
+      const ws = new WebSocket(`${WS_BASE}/user/${encodeURIComponent(sessionId)}/${countryCode}/${encodeURIComponent(userName)}`);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        attempts = 0;
+        setIsSocketConnected(true);
+        console.log("WebSocket connected ✅");
+      };
+
+      ws.onerror = (error) => {
+        setIsSocketConnected(false);
+        console.error("WebSocket error:", error);
+      };
+
+      ws.onmessage = (e) => {
       setBotTyping(false);
       let data = e.data;
       const parsed = JSON.parse(data);
@@ -137,11 +156,28 @@ export default function UserPage() {
         addMessage({ role: parsed.from, content: parsed.content });
         return;
       }
-    };
-    ws.onclose = () => console.log("WebSocket closed ❌");
+      };
 
-    return () => ws.close();
-  }, [sessionId, countryCode, showUserDialog]);
+      ws.onclose = () => {
+        setIsSocketConnected(false);
+        console.log("WebSocket closed ❌");
+
+        if (!shouldReconnect) return;
+
+        attempts += 1;
+        const delay = Math.min(1500 * attempts, 5000);
+        reconnectTimer = setTimeout(connectSocket, delay);
+      };
+    };
+
+    connectSocket();
+
+    return () => {
+      shouldReconnect = false;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (wsRef.current) wsRef.current.close();
+    };
+  }, [sessionId, countryCode, showUserDialog, userName]);
 
   const addMessage = (msg) => {
     setMessages((prev) => [
@@ -361,7 +397,7 @@ export default function UserPage() {
                       }`}
                     >
                       {msg.role !== "user" && (
-                        <div className="w-10 h-10 flex-shrink-0">
+                        <div className="w-10 h-10 shrink-0">
                           {msg.role === "assistant" ? (
                             <img
                               src="/ai_avatar.webp"
@@ -377,17 +413,20 @@ export default function UserPage() {
                       )}
 
                       <div
-                        className={`px-4 py-3 rounded-2xl max-w-[75%] shadow-sm ${
+                        className={`px-4 py-3 rounded-2xl max-w-[85%] md:max-w-[75%] shadow-sm ${
                           roleStyles[msg.role] || "bg-card border"
                         }`}
                       >
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={markdownComponents}
+                        >
                           {msg.content}
                         </ReactMarkdown>
                       </div>
 
                       {msg.role === "user" && (
-                        <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center flex-shrink-0">
+                        <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0">
                           <User className="w-5 h-5" />
                         </div>
                       )}
@@ -467,6 +506,9 @@ export default function UserPage() {
                 )}
               </Button>
             </div>
+            {!isSocketConnected && (
+              <p className="text-xs text-red-500 mt-2">Connecting to chat server...</p>
+            )}
           </div>
         </div>
       </div>
