@@ -34,6 +34,34 @@ const markdownComponents = {
       loading="lazy"
     />
   ),
+   a: ({ href, children }) => {
+    const label = Array.isArray(children) ? children.join("") : String(children || "");
+    const isViewProduct = /view\s*product/i.test(label);
+
+    if (isViewProduct) {
+      return (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center rounded-md bg-amber-500 px-3 py-1.5 text-sm font-semibold text-black no-underline shadow transition hover:bg-amber-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+        >
+          {children}
+        </a>
+      );
+    }
+
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-medium text-blue-600 underline underline-offset-2 hover:text-blue-500"
+      >
+        {children}
+      </a>
+    );
+  },
 };
 
 export default function UserPage() {
