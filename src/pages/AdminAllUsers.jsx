@@ -4,7 +4,7 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
-  Menu,
+  Download,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -19,6 +19,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 const API_BASE = "https://api.vultr3.qlink.in/api/web";
+// const API_BASE = "http://localhost:8000/api/web";
 
 export default function AdminAllUsers() {
   const [allUsers, setAllUsers] = useState([]);
@@ -28,7 +29,61 @@ export default function AdminAllUsers() {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [loadingUserData, setLoadingUserData] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [downloadingSessionId, setDownloadingSessionId] = useState(null);
   const chatEndRef = useRef(null);
+
+  const toCsvCell = (value) => {
+    const text = String(value ?? "").replace(/"/g, '""');
+    return `"${text}"`;
+  };
+
+  const normalizeTimestamp = (timestamp) => {
+    if (!timestamp) return "";
+    if (typeof timestamp === "string") return timestamp;
+    if (timestamp?.$date) return timestamp.$date;
+    return "";
+  };
+
+  const downloadUserChatCsv = async (userLike) => {
+    const sessionId = userLike?.session_id;
+    if (!sessionId) return;
+
+    setDownloadingSessionId(sessionId);
+    try {
+      const res = await fetch(`${API_BASE}/users/${encodeURIComponent(sessionId)}`);
+      if (!res.ok) throw new Error("Failed to fetch user for CSV");
+
+      const userData = await res.json();
+      const chatHistory = Array.isArray(userData?.chat_history)
+        ? userData.chat_history
+        : [];
+
+      const rows = ["timestamp,role,content"];
+      chatHistory.forEach((msg) => {
+        const timestamp = normalizeTimestamp(msg?.timestamp);
+        const role = msg?.role || "";
+        const content = msg?.content || "";
+        rows.push(
+          `${toCsvCell(timestamp)},${toCsvCell(role)},${toCsvCell(content)}`
+        );
+      });
+
+      const csvContent = rows.join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `${sessionId}_chat_history.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Error downloading CSV", err);
+    } finally {
+      setDownloadingSessionId(null);
+    }
+  };
 
   useEffect(() => {
     setLoadingUsers(true);
@@ -49,7 +104,7 @@ export default function AdminAllUsers() {
     setLoadingUserData(true);
     setSelectedUserData(null);
 
-    fetch(`${API_BASE}/users/${selectedUser.session_id}`)
+    fetch(`${API_BASE}/users/${encodeURIComponent(selectedUser.session_id)}`)
       .then((res) => res.json())
       .then((data) => {
         if (data) setSelectedUserData(data);
@@ -132,6 +187,23 @@ export default function AdminAllUsers() {
                         {user.session_id}
                       </span>
                     </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-2 h-7 text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        downloadUserChatCsv(user);
+                      }}
+                      disabled={downloadingSessionId === user.session_id}
+                    >
+                      {downloadingSessionId === user.session_id ? (
+                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      ) : (
+                        <Download className="w-3 h-3 mr-1" />
+                      )}
+                      CSV
+                    </Button>
                   </div>
                 </CardContent>
               </div>
@@ -201,6 +273,19 @@ export default function AdminAllUsers() {
                   onClick={() => setShowUserInfo(true)}
                 >
                   View Details
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => downloadUserChatCsv(selectedUserData)}
+                  disabled={downloadingSessionId === selectedUserData.session_id}
+                >
+                  {downloadingSessionId === selectedUserData.session_id ? (
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4 mr-1" />
+                  )}
+                  Download CSV
                 </Button>
               </div>
               <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
