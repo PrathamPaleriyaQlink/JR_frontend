@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Plus, Pencil, Trash2 } from "lucide-react";
 
 const API_BASE = "https://api.vultr3.qlink.in/api/web";
+// const API_BASE = "http://localhost:8000/api/web";
 
 export default function AdminKnowledgeBase() {
   const [records, setRecords] = useState([]);
@@ -33,13 +34,28 @@ export default function AdminKnowledgeBase() {
   const [editRecordText, setEditRecordText] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
 
+  const formatCreatedAt = (value) => {
+    const parsed = Date.parse(value || "");
+    if (!parsed) return "-";
+    return new Date(parsed).toLocaleString();
+  };
+
   const fetchRecords = async () => {
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/kb/all/agent`);
+      if (!res.ok) {
+        throw new Error(`Failed to fetch records: ${res.status}`);
+      }
       const data = await res.json();
-      console.log(data)
-      setRecords(Array.isArray(data) ? data : []);
+      const sorted = Array.isArray(data)
+        ? [...data].sort((a, b) => {
+            const aTime = Date.parse(a?.metadata?.created_at || "") || 0;
+            const bTime = Date.parse(b?.metadata?.created_at || "") || 0;
+            return bTime - aTime;
+          })
+        : [];
+      setRecords(sorted);
     } catch (err) {
       console.error(err);
     } finally {
@@ -156,7 +172,7 @@ export default function AdminKnowledgeBase() {
                       </Popover>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {new Date(rec.metadata?.created_at).toLocaleString()}
+                      {formatCreatedAt(rec.metadata?.created_at)}
                     </TableCell>
                     <TableCell className="text-right space-x-2">
                       <Button

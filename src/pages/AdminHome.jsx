@@ -13,20 +13,81 @@ import { useNavigate } from "react-router-dom";
 import { Separator } from "@/components/ui/separator";
 import { useAlerts } from "@/contexts/AlertContext";
 
+// const API_BASE = "http://localhost:8000/api/web";
+const API_BASE = "https://api.vultr3.qlink.in/api/web";
+
 export default function AdminHome() {
   const { alerts } = useAlerts();
   const navigate = useNavigate();
 
+  const [dashboardData, setDashboardData] = React.useState({
+    overview: {
+      active_users: 0,
+      total_users: 0,
+    },
+    insights: {
+      most_searched_keyword: "N/A",
+      active_time: "N/A",
+      highest_traffic_location: "N/A",
+      highest_interested_color: "N/A",
+    },
+  });
+  const [loadingDashboard, setLoadingDashboard] = React.useState(true);
+
+  React.useEffect(() => {
+    let isMounted = true;
+
+    const fetchDashboardData = async () => {
+      try {
+        setLoadingDashboard(true);
+        const res = await fetch(`${API_BASE}/dashboard/insights`);
+        if (!res.ok) throw new Error("Failed to fetch dashboard insights");
+
+        const data = await res.json();
+        if (isMounted) {
+          setDashboardData({
+            overview: {
+              active_users: data?.overview?.active_users ?? 0,
+              total_users: data?.overview?.total_users ?? 0,
+            },
+            insights: {
+              most_searched_keyword: data?.insights?.most_searched_keyword || "N/A",
+              active_time: data?.insights?.active_time || "N/A",
+              highest_traffic_location: data?.insights?.highest_traffic_location || "N/A",
+              highest_interested_color: data?.insights?.highest_interested_color || "N/A",
+            },
+          });
+        }
+      } catch (err) {
+        console.error("Error fetching dashboard insights", err);
+      } finally {
+        if (isMounted) setLoadingDashboard(false);
+      }
+    };
+
+    fetchDashboardData();
+    const intervalId = setInterval(fetchDashboardData, 30000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
+  }, []);
+
   const mainCards = [
     {
       title: "Active Users",
-      value: "124",
+      value: loadingDashboard
+        ? "..."
+        : dashboardData.overview.active_users.toLocaleString(),
       icon: <UserCheck className="h-5 w-5 text-blue-500" />,
       onClick: () => navigate("/admin/active"),
     },
     {
       title: "Total Users",
-      value: "1,024",
+      value: loadingDashboard
+        ? "..."
+        : dashboardData.overview.total_users.toLocaleString(),
       icon: <Users className="h-5 w-5 text-green-500" />,
       onClick: () => navigate("/admin/users"),
     },
@@ -35,22 +96,28 @@ export default function AdminHome() {
   const insightCards = [
     {
       title: "Most Searched Keyword",
-      value: "Persian Rug",
+      value: loadingDashboard
+        ? "Loading..."
+        : dashboardData.insights.most_searched_keyword,
       icon: <Keyboard className="h-5 w-5 text-yellow-500" />,
     },
     {
       title: "Active Time",
-      value: "7 PM – 9 PM",
+      value: loadingDashboard ? "Loading..." : dashboardData.insights.active_time,
       icon: <Clock className="h-5 w-5 text-purple-500" />,
     },
     {
       title: "Highest Traffic Location",
-      value: "India",
+      value: loadingDashboard
+        ? "Loading..."
+        : dashboardData.insights.highest_traffic_location,
       icon: <MapPin className="h-5 w-5 text-red-500" />,
     },
     {
       title: "Highest Interested Color",
-      value: "Beige",
+      value: loadingDashboard
+        ? "Loading..."
+        : dashboardData.insights.highest_interested_color,
       icon: <Palette className="h-5 w-5 text-pink-500" />,
     },
   ];
