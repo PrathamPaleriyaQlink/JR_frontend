@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Download,
 } from "lucide-react";
+import { jsPDF } from "jspdf";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
@@ -30,12 +31,8 @@ export default function AdminAllUsers() {
   const [loadingUserData, setLoadingUserData] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [downloadingSessionId, setDownloadingSessionId] = useState(null);
+  const [downloadingAllUsers, setDownloadingAllUsers] = useState(false);
   const chatEndRef = useRef(null);
-
-  const toCsvCell = (value) => {
-    const text = String(value ?? "").replace(/"/g, '""');
-    return `"${text}"`;
-  };
 
   const normalizeTimestamp = (timestamp) => {
     if (!timestamp) return "";
@@ -44,44 +41,179 @@ export default function AdminAllUsers() {
     return "";
   };
 
-  const downloadUserChatCsv = async (userLike) => {
+  const toCsvCell = (value) => {
+    const text = String(value ?? "").replace(/"/g, '""');
+    return `"${text}"`;
+  };
+
+  const sanitizeFileName = (value) => {
+    return String(value || "chat")
+      .replace(/[^a-zA-Z0-9._-]/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 120);
+  };
+
+  const createChatPdfAndDownload = (userData) => {
+    const sessionId = userData?.session_id || "unknown_session";
+    const userName = userData?.user_name || "Unknown User";
+    const chatHistory = Array.isArray(userData?.chat_history)
+      ? userData.chat_history
+      : [];
+
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const marginX = 40;
+    const marginY = 42;
+    const lineHeight = 16;
+    const maxTextWidth = pageWidth - marginX * 2;
+    let cursorY = marginY;
+
+    const ensureSpace = (requiredHeight = lineHeight) => {
+      if (cursorY + requiredHeight <= pageHeight - marginY) return;
+      doc.addPage();
+      cursorY = marginY;
+    };
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text("Chat History", marginX, cursorY);
+    cursorY += 24;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    const metaLines = [
+      `User: ${userName}`,
+      `Session ID: ${sessionId}`,
+      `Total Messages: ${chatHistory.length}`,
+      `Generated: ${new Date().toLocaleString()}`,
+    ];
+
+    metaLines.forEach((line) => {
+      ensureSpace(lineHeight);
+      doc.text(line, marginX, cursorY);
+      cursorY += lineHeight;
+    });
+
+    cursorY += 10;
+
+    if (chatHistory.length === 0) {
+      ensureSpace(lineHeight);
+      doc.text("No messages found.", marginX, cursorY);
+    } else {
+      chatHistory.forEach((msg, index) => {
+        const role = msg?.role || "unknown";
+        const timestamp = normalizeTimestamp(msg?.timestamp);
+        const content = String(msg?.content || "").replace(/\s+/g, " ").trim();
+        const header = `${index + 1}. ${role}${timestamp ? ` | ${timestamp}` : ""}`;
+
+        doc.setFont("helvetica", "bold");
+        ensureSpace(lineHeight);
+        doc.text(header, marginX, cursorY);
+        cursorY += lineHeight;
+
+        doc.setFont("helvetica", "normal");
+        const contentLines = doc.splitTextToSize(content || "(empty)", maxTextWidth);
+        contentLines.forEach((line) => {
+          ensureSpace(lineHeight);
+          doc.text(line, marginX, cursorY);
+          cursorY += lineHeight;
+        });
+
+        cursorY += 8;
+      });
+    }
+
+    const safeSessionId = sanitizeFileName(sessionId) || "chat";
+    doc.save(`${safeSessionId}_chat_history.pdf`);
+  };
+
+  const fetchUserDataBySessionId = async (sessionId) => {
+    const res = await fetch(`${API_BASE}/users/${encodeURIComponent(sessionId)}`);
+    if (!res.ok) throw new Error("Failed to fetch user for PDF");
+    return res.json();
+  };
+
+  const downloadUserChatPdf = async (userLike) => {
     const sessionId = userLike?.session_id;
     if (!sessionId) return;
 
     setDownloadingSessionId(sessionId);
     try {
-      const res = await fetch(`${API_BASE}/users/${encodeURIComponent(sessionId)}`);
-      if (!res.ok) throw new Error("Failed to fetch user for CSV");
+      const userData = await fetchUserDataBySessionId(sessionId);
+      createChatPdfAndDownload(userData);
+    } catch (err) {
+      console.error("Error downloading PDF", err);
+    } finally {
+      setDownloadingSessionId(null);
+    }
+  };
 
-      const userData = await res.json();
-      const chatHistory = Array.isArray(userData?.chat_history)
-        ? userData.chat_history
-        : [];
+  const downloadAllUsersChatsCsv = async () => {
+    if (downloadingAllUsers || loadingUsers || !allUsers.length) return;
 
-      const rows = ["timestamp,role,content"];
-      chatHistory.forEach((msg) => {
-        const timestamp = normalizeTimestamp(msg?.timestamp);
-        const role = msg?.role || "";
-        const content = msg?.content || "";
-        rows.push(
-          `${toCsvCell(timestamp)},${toCsvCell(role)},${toCsvCell(content)}`
-        );
-      });
+    setDownloadingAllUsers(true);
+    try {
+      const rows = ["username,email_or_session_id,timestamp,role,content"];
+
+      for (const user of allUsers) {
+        if (!user?.session_id) continue;
+        try {
+          const userData = await fetchUserDataBySessionId(user.session_id);
+          const userName = userData?.user_name || "Unknown User";
+          const emailOrSession = userData?.session_id || user?.session_id || "";
+          const chatHistory = Array.isArray(userData?.chat_history)
+            ? userData.chat_history
+            : [];
+
+          if (chatHistory.length === 0) {
+            rows.push(
+              [
+                toCsvCell(userName),
+                toCsvCell(emailOrSession),
+                toCsvCell(""),
+                toCsvCell(""),
+                toCsvCell(""),
+              ].join(",")
+            );
+            continue;
+          }
+
+          chatHistory.forEach((msg, index) => {
+            const timestamp = normalizeTimestamp(msg?.timestamp);
+            const role = msg?.role || "";
+            const content = msg?.content || "";
+            rows.push(
+              [
+                toCsvCell(index === 0 ? userName : ""),
+                toCsvCell(index === 0 ? emailOrSession : ""),
+                toCsvCell(timestamp),
+                toCsvCell(role),
+                toCsvCell(content),
+              ].join(",")
+            );
+          });
+        } catch (err) {
+          console.error(`Failed to include user in CSV ${user.session_id}`, err);
+        }
+      }
 
       const csvContent = rows.join("\n");
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `${sessionId}_chat_history.csv`);
+      link.setAttribute(
+        "download",
+        `all_users_chat_history_${new Date().toISOString().slice(0, 10)}.csv`
+      );
       document.body.appendChild(link);
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Error downloading CSV", err);
     } finally {
-      setDownloadingSessionId(null);
+      setDownloadingAllUsers(false);
     }
   };
 
@@ -150,6 +282,20 @@ export default function AdminAllUsers() {
                     }`}
               </p>
             </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs"
+              onClick={downloadAllUsersChatsCsv}
+              disabled={downloadingAllUsers || loadingUsers || allUsers.length === 0}
+            >
+              {downloadingAllUsers ? (
+                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+              ) : (
+                <Download className="w-3 h-3 mr-1" />
+              )}
+              Download
+            </Button>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-3">
@@ -193,7 +339,7 @@ export default function AdminAllUsers() {
                       className="mt-2 h-7 text-xs"
                       onClick={(e) => {
                         e.stopPropagation();
-                        downloadUserChatCsv(user);
+                        downloadUserChatPdf(user);
                       }}
                       disabled={downloadingSessionId === user.session_id}
                     >
@@ -202,7 +348,7 @@ export default function AdminAllUsers() {
                       ) : (
                         <Download className="w-3 h-3 mr-1" />
                       )}
-                      CSV
+                      Download
                     </Button>
                   </div>
                 </CardContent>
@@ -277,7 +423,7 @@ export default function AdminAllUsers() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => downloadUserChatCsv(selectedUserData)}
+                  onClick={() => downloadUserChatPdf(selectedUserData)}
                   disabled={downloadingSessionId === selectedUserData.session_id}
                 >
                   {downloadingSessionId === selectedUserData.session_id ? (
@@ -285,7 +431,7 @@ export default function AdminAllUsers() {
                   ) : (
                     <Download className="w-4 h-4 mr-1" />
                   )}
-                  Download CSV
+                  Download
                 </Button>
               </div>
               <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
