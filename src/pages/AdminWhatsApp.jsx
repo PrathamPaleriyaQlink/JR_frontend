@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Send,
   Phone,
+  Search,
 } from "lucide-react";
 import { CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -99,6 +100,14 @@ export default function AdminWhatsApp() {
       handleSend();
     }
   };
+
+  const [msgSearch, setMsgSearch] = useState("");
+
+  const filteredMessages = msgSearch.trim()
+    ? messages.filter((m) =>
+        (m.content || "").toLowerCase().includes(msgSearch.trim().toLowerCase())
+      )
+    : messages;
 
   const selectedConv = conversations.find((c) => c.phone === selectedPhone);
 
@@ -206,17 +215,26 @@ export default function AdminWhatsApp() {
         ) : (
           <>
             {/* Chat Header */}
-            <div className="border-b px-6 py-4 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center">
+            <div className="border-b px-6 py-3 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center shrink-0">
                 <MessageSquare className="w-5 h-5 text-green-700" />
               </div>
-              <div>
-                <h2 className="font-semibold text-base">
+              <div className="min-w-0">
+                <h2 className="font-semibold text-base truncate">
                   {selectedConv?.name || selectedPhone}
                 </h2>
                 <p className="text-xs text-muted-foreground font-mono">
                   {selectedPhone}
                 </p>
+              </div>
+              <div className="relative ml-auto w-52">
+                <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-muted-foreground" />
+                <input
+                  className="w-full pl-8 pr-3 py-2 text-xs border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Search messages…"
+                  value={msgSearch}
+                  onChange={(e) => setMsgSearch(e.target.value)}
+                />
               </div>
             </div>
 
@@ -226,12 +244,12 @@ export default function AdminWhatsApp() {
                 <div className="flex items-center justify-center h-full">
                   <Loader2 className="w-6 h-6 animate-spin text-primary" />
                 </div>
-              ) : messages.length === 0 ? (
+              ) : filteredMessages.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                  No messages yet
+                  {msgSearch.trim() ? "No messages match your search" : "No messages yet"}
                 </div>
               ) : (
-                messages.map((msg, i) => (
+                filteredMessages.map((msg, i) => (
                   <div
                     key={i}
                     className={`flex ${
