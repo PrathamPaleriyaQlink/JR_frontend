@@ -16,6 +16,8 @@ import AdminLogin from "./pages/AdminLogin";
 import { AdminProvider } from "./contexts/AdminContext";
 import KBSearch from "./pages/KBSearch";
 import AdminWhatsApp from "./pages/AdminWhatsApp";
+import AdminLeads from "./pages/AdminLeads";
+import AdminProducts from "./pages/AdminProducts";
 
 function App() {
   return (
@@ -32,6 +34,8 @@ function App() {
                 <Route path="users" element={<AdminAllUsers />} />
                 <Route path="alerts" element={<AdminAlerts />} />
                 <Route path="whatsapp" element={<AdminWhatsApp />} />
+                <Route path="leads" element={<AdminLeads />} />
+                <Route path="products" element={<AdminProducts />} />
 
                 <Route path="kb" element={<KBLayout />}>
                   <Route index element={<SystemPrompt />} />
