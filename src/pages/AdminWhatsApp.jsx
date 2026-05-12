@@ -101,6 +101,16 @@ export default function AdminWhatsApp() {
     }
   };
 
+  const [convSearch, setConvSearch] = useState("");
+  const filteredConversations = convSearch.trim()
+    ? conversations.filter((c) => {
+        const q = convSearch.trim().toLowerCase();
+        return (
+          (c.name || "").toLowerCase().includes(q) ||
+          (c.phone || "").toLowerCase().includes(q)
+        );
+      })
+    : conversations;
   const [msgSearch, setMsgSearch] = useState("");
 
   const filteredMessages = msgSearch.trim()
@@ -119,15 +129,22 @@ export default function AdminWhatsApp() {
           sidebarCollapsed ? "w-0" : "w-72"
         } border-r bg-card overflow-hidden flex flex-col transition-all duration-300 ease-in-out`}
       >
-        <div className="p-4 border-b">
-          <h2 className="font-semibold text-sm uppercase tracking-wide">
-            WhatsApp
-          </h2>
-          <p className="text-xs text-muted-foreground mt-1">
-            {loadingConversations
-              ? "Loading..."
-              : `${conversations.length} conversation${conversations.length !== 1 ? "s" : ""}`}
-          </p>
+        <div className="p-3 border-b flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-sm uppercase tracking-wide">WhatsApp</h2>
+            <span className="text-xs text-muted-foreground">
+              {loadingConversations ? "…" : filteredConversations.length}/{conversations.length}
+            </span>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-muted-foreground" />
+            <input
+              className="w-full pl-8 pr-3 py-2 text-xs border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="Search name or number…"
+              value={convSearch}
+              onChange={(e) => setConvSearch(e.target.value)}
+            />
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-3">
@@ -136,8 +153,8 @@ export default function AdminWhatsApp() {
               <Loader2 className="w-6 h-6 animate-spin mb-2" />
               <p className="text-sm">Loading...</p>
             </div>
-          ) : conversations.length > 0 ? (
-            conversations.map((conv) => (
+          ) : filteredConversations.length > 0 ? (
+            filteredConversations.map((conv) => (
               <div
                 key={conv.phone}
                 className={`cursor-pointer border-b border-black/10 py-2 transition-all duration-200 hover:bg-primary/10 ${
@@ -176,7 +193,7 @@ export default function AdminWhatsApp() {
             ))
           ) : (
             <div className="text-center py-8 text-muted-foreground text-sm">
-              No conversations yet
+              {convSearch.trim() ? "No results found" : "No conversations yet"}
             </div>
           )}
         </div>
