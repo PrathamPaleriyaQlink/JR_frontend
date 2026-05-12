@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { Home, Users, UserCheck, LogOutIcon, Brain, Bell } from "lucide-react";
+import { Home, Users, UserCheck, LogOutIcon, Brain, Bell, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useAlerts } from "@/contexts/AlertContext";
@@ -79,6 +79,12 @@ export default function AdminLayout() {
           <Link to="/admin/kb">
             <Button variant={getTabVariant("/admin/kb")} size="icon">
               <Brain className="w-5 h-5" />
+            </Button>
+          </Link>
+
+          <Link to="/admin/whatsapp">
+            <Button variant={getTabVariant("/admin/whatsapp")} size="icon">
+              <MessageSquare className="w-5 h-5" />
             </Button>
           </Link>
         </div>
