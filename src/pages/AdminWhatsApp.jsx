@@ -7,7 +7,7 @@ import {
   Send,
   Phone,
 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -245,7 +245,21 @@ export default function AdminWhatsApp() {
                           : "bg-card border rounded-bl-sm"
                       }`}
                     >
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          a: ({ href, children }) => (
+                            <a
+                              href={href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 mt-1 px-3 py-1.5 rounded-lg border text-xs font-medium bg-white text-primary border-primary hover:bg-primary/10 transition-colors no-underline"
+                            >
+                              {children}
+                            </a>
+                          ),
+                        }}
+                      >
                         {msg.content}
                       </ReactMarkdown>
                       {msg.timestamp && (
