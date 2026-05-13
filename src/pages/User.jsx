@@ -37,6 +37,7 @@ const markdownComponents = {
    a: ({ href, children }) => {
     const label = Array.isArray(children) ? children.join("") : String(children || "");
     const isViewProduct = /view\s*product/i.test(label);
+    const isSearchMore = /search\s*more/i.test(label);
 
     if (isViewProduct) {
       return (
@@ -45,6 +46,19 @@ const markdownComponents = {
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center rounded-md bg-amber-500 px-3 py-1.5 text-sm font-semibold text-black no-underline shadow transition hover:bg-amber-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+        >
+          {children}
+        </a>
+      );
+    }
+
+    if (isSearchMore) {
+      return (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center rounded-md border border-amber-500 px-3 py-1.5 text-sm font-semibold text-amber-600 no-underline shadow transition hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
         >
           {children}
         </a>
