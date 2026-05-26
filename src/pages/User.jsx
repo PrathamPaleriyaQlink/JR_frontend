@@ -86,6 +86,7 @@ export default function UserPage() {
   const [countryFlag, setCountryFlag] = useState("🇮🇳");
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [botTyping, setBotTyping] = useState(false);
+  const [awaitingResponse, setAwaitingResponse] = useState(false);
   const [agentTyping, setAgentTyping] = useState(false);
   const [uplaodImgLoading, setUploadImgLoading] = useState(false);
   const [isSocketConnected, setIsSocketConnected] = useState(false);
@@ -195,6 +196,7 @@ export default function UserPage() {
       }
 
       if (parsed.type === "message") {
+        setAwaitingResponse(false);
         addMessage({ role: parsed.from, content: parsed.content });
         return;
       }
@@ -233,7 +235,7 @@ export default function UserPage() {
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, botTyping]);
+  }, [messages, botTyping, awaitingResponse]);
 
   const sendMessage = () => {
     if (
@@ -252,6 +254,7 @@ export default function UserPage() {
     );
 
     addMessage({ role: "user", content: message });
+    setAwaitingResponse(true);
     setMessage("");
   };
 
@@ -302,6 +305,7 @@ export default function UserPage() {
 
       // UI MESSAGE
       addMessage({ role: "user", content: `![image](${final_url})` });
+      setAwaitingResponse(true);
     } catch (err) {
       console.error("Image upload error:", err);
     } finally {
@@ -476,7 +480,7 @@ export default function UserPage() {
                   );
                 })}
 
-                {botTyping && (
+                {(botTyping || awaitingResponse) && (
                   <div className="flex justify-start">
                     <img
                       src="/ai_avatar.webp"
@@ -541,7 +545,7 @@ export default function UserPage() {
                 </Button>
               </div>
               <Button onClick={sendMessage} size="icon" className="shadow-md">
-                {botTyping ? (
+                {botTyping || awaitingResponse ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <Send className="w-4 h-4" />
