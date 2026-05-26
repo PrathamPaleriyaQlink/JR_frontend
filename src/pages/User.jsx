@@ -21,9 +21,9 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import ThemeToggle from "@/components/ThemeToggle";
+import { API_WEB_BASE, WS_BASE } from "@/lib/api";
 
-const WS_BASE = "wss://api.vultr3.qlink.in/ws";
-const API_BASE = "https://api.vultr3.qlink.in/api/web";
+const API_BASE = API_WEB_BASE;
 
 const SEARCH_LINK_RE = /\[([^\]]*(?:search|browse)[^\]]*)\]\((https?:\/\/[^)]+)\)/i;
 

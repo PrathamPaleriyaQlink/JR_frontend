@@ -23,9 +23,9 @@ import { Switch } from "@/components/ui/switch";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useAdmin } from "@/contexts/AdminContext";
+import { API_WEB_BASE, WS_BASE } from "@/lib/api";
 
-const WS_BASE = "wss://api.vultr3.qlink.in/ws";
-const API_BASE = "https://api.vultr3.qlink.in/api/web";
+const API_BASE = API_WEB_BASE;
 
 export default function AdminActiveUsers() {
   const [activeUsers, setActiveUsers] = useState([]);

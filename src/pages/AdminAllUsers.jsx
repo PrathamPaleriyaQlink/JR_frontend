@@ -18,9 +18,9 @@ import {
 import { Button } from "@/components/ui/button";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { API_WEB_BASE } from "@/lib/api";
 
-const API_BASE = "https://api.vultr3.qlink.in/api/web";
-// const API_BASE = "http://localhost:8000/api/web";
+const API_BASE = API_WEB_BASE;
 
 export default function AdminAllUsers() {
   const [allUsers, setAllUsers] = useState([]);

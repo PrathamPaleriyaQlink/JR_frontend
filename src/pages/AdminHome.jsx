@@ -12,9 +12,9 @@ import {
 import { useNavigate } from "react-router-dom";
 import { Separator } from "@/components/ui/separator";
 import { useAlerts } from "@/contexts/AlertContext";
+import { API_WEB_BASE } from "@/lib/api";
 
-// const API_BASE = "http://localhost:8000/api/web";
-const API_BASE = "https://api.vultr3.qlink.in/api/web";
+const API_BASE = API_WEB_BASE;
 
 export default function AdminHome() {
   const { alerts } = useAlerts();

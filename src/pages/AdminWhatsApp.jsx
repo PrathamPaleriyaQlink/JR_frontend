@@ -12,8 +12,9 @@ import { CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { API_DASHBOARD_BASE } from "@/lib/api";
 
-const API_BASE = "https://jaipurrugs-whatsapp-backend.vercel.app/api";
+const API_BASE = API_DASHBOARD_BASE;
 
 export default function AdminWhatsApp() {
   const [conversations, setConversations] = useState([]);

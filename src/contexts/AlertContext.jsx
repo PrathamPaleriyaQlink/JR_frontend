@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { API_WEB_BASE } from "@/lib/api";
 
 const AlertContext = createContext();
 
@@ -32,7 +33,7 @@ export const AlertProvider = ({ children }) => {
 
   const fetchAlerts = async () => {
     try {
-      const res = await fetch("https://api.vultr3.qlink.in/api/web/alerts/all");
+      const res = await fetch(`${API_WEB_BASE}/alerts/all`);
       const data = await res.json();
       const newAlerts = data || [];
 
@@ -51,7 +52,7 @@ export const AlertProvider = ({ children }) => {
 
   const deleteAlert = async (id) => {
     try {
-      await fetch(`https://api.vultr3.qlink.in/api/web/alerts/${id}`, {
+      await fetch(`${API_WEB_BASE}/alerts/${id}`, {
         method: "DELETE",
       });
       setAlerts((prev) => prev.filter((a) => a._id !== id));

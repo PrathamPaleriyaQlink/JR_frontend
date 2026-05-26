@@ -19,9 +19,9 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Plus, Pencil, Trash2 } from "lucide-react";
+import { API_WEB_BASE } from "@/lib/api";
 
-const API_BASE = "https://api.vultr3.qlink.in/api/web";
-// const API_BASE = "http://localhost:8000/api/web";
+const API_BASE = API_WEB_BASE;
 
 export default function AdminKnowledgeBase() {
   const [records, setRecords] = useState([]);

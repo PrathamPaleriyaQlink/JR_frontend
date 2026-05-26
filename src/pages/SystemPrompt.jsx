@@ -2,8 +2,9 @@ import React, { useState, useEffect } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Loader2, AlertTriangle, Edit2, X, Check } from "lucide-react";
+import { API_WEB_BASE } from "@/lib/api";
 
-const API_BASE = "https://api.vultr3.qlink.in/api/web";
+const API_BASE = API_WEB_BASE;
 
 export default function SystemPrompt() {
   const [prompt, setPrompt] = useState({

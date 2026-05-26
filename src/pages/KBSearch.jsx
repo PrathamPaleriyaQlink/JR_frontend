@@ -27,8 +27,9 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Search, Pencil, Trash2 } from "lucide-react";
+import { API_WEB_BASE } from "@/lib/api";
 
-const API_BASE = "https://api.vultr3.qlink.in/api/web";
+const API_BASE = API_WEB_BASE;
 
 const KBSearch = () => {
   const [query, setQuery] = useState("");

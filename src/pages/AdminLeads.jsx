@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Loader2, Phone, Search, RefreshCw, UserCheck2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { API_DASHBOARD_BASE } from "@/lib/api";
 
-const API_BASE = "https://jaipurrugs-whatsapp-backend.vercel.app/api";
+const API_BASE = API_DASHBOARD_BASE;
 
 export default function AdminLeads() {
   const [leads, setLeads] = useState([]);
