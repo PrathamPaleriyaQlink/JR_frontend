@@ -25,22 +25,26 @@ import { API_WEB_BASE, WS_BASE } from "@/lib/api";
 
 const API_BASE = API_WEB_BASE;
 
-const SEARCH_LINK_RE = /\[([^\]]*(?:search|browse)[^\]]*)\]\((https?:\/\/[^)]+)\)/i;
-const PLAIN_SEARCH_URL_RE = /https?:\/\/(?:www\.)?jaipurrugs\.com\/search\?[^\s)]+/i;
-const SEARCH_PROMPT_LINE_RE = /(?:you can )?search more products here:\s*$/i;
+const SEARCH_LINK_RE = /\[([^\]]*(?:search|browse|more rugs)[^\]]*)\]\((https?:\/\/[^)]+)\)/gi;
+const PLAIN_SEARCH_URL_RE = /https?:\/\/(?:www\.)?jaipurrugs\.com\/(?:in\/)?search(?:\?[^\s)]+)?/gi;
+const SEARCH_PROMPT_LINE_RE = /(?:you can )?(?:search|browse|show) more (?:products|rugs)(?: here)?:\s*$/i;
 
 function extractSearchCta(content) {
-  const markdownMatch = SEARCH_LINK_RE.exec(content);
-  if (markdownMatch) {
-    const cleaned = content.replace(markdownMatch[0], "").replace(/\n{3,}/g, "\n\n").trim();
-    return { text: cleaned, searchUrl: markdownMatch[2], searchLabel: markdownMatch[1] };
-  }
+  let searchUrl = null;
+  let searchLabel = "Search More Rugs";
+  let cleaned = content.replace(SEARCH_LINK_RE, (match, label, url) => {
+    if (!searchUrl && /(?:\/search|\bsearch\b|\bbrowse\b|more rugs)/i.test(url + label)) {
+      searchUrl = url;
+      searchLabel = label.replace(/[^\w\s]/g, "").trim() || "Search More Rugs";
+    }
+    return "";
+  });
 
-  const plainMatch = PLAIN_SEARCH_URL_RE.exec(content);
-  if (!plainMatch) return { text: content, searchUrl: null, searchLabel: null };
-
-  const cleaned = content
-    .replace(plainMatch[0], "")
+  cleaned = cleaned
+    .replace(PLAIN_SEARCH_URL_RE, (url) => {
+      if (!searchUrl) searchUrl = url;
+      return "";
+    })
     .split("\n")
     .map((line) => line.replace(SEARCH_PROMPT_LINE_RE, "").trimEnd())
     .filter((line) => line.trim())
@@ -48,7 +52,7 @@ function extractSearchCta(content) {
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
-  return { text: cleaned, searchUrl: plainMatch[0], searchLabel: "Search More Rugs" };
+  return { text: cleaned, searchUrl, searchLabel };
 }
 
 const markdownComponents = {
