@@ -25,6 +25,15 @@ import ThemeToggle from "@/components/ThemeToggle";
 const WS_BASE = "wss://api.vultr3.qlink.in/ws";
 const API_BASE = "https://api.vultr3.qlink.in/api/web";
 
+const SEARCH_LINK_RE = /\[([^\]]*(?:search|browse)[^\]]*)\]\((https?:\/\/[^)]+)\)/i;
+
+function extractSearchCta(content) {
+  const match = SEARCH_LINK_RE.exec(content);
+  if (!match) return { text: content, searchUrl: null, searchLabel: null };
+  const cleaned = content.replace(match[0], "").replace(/\n{3,}/g, "\n\n").trim();
+  return { text: cleaned, searchUrl: match[2], searchLabel: match[1] };
+}
+
 const markdownComponents = {
   img: ({ src, alt }) => (
     <img
@@ -466,12 +475,32 @@ export default function UserPage() {
                           roleStyles[msg.role] || "bg-card border"
                         }`}
                       >
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          components={markdownComponents}
-                        >
-                          {msg.content}
-                        </ReactMarkdown>
+                        {msg.role === "assistant" ? (() => {
+                          const { text, searchUrl, searchLabel } = extractSearchCta(msg.content);
+                          return (
+                            <>
+                              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                                {text}
+                              </ReactMarkdown>
+                              {searchUrl && (
+                                <div className="mt-3">
+                                  <a
+                                    href={searchUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center rounded-md border border-amber-500 px-3 py-1.5 text-sm font-semibold text-amber-600 no-underline shadow transition hover:bg-amber-50"
+                                  >
+                                    {searchLabel}
+                                  </a>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })() : (
+                          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                            {msg.content}
+                          </ReactMarkdown>
+                        )}
                       </div>
 
                       {msg.role === "user" && (
