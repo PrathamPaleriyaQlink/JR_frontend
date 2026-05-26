@@ -79,6 +79,7 @@ const markdownComponents = {
 };
 
 export default function UserPage() {
+  const isInIframe = window.self !== window.top;
   const [sessionId, setSessionId] = useState("");
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState("");
@@ -389,15 +390,17 @@ export default function UserPage() {
 
               <ThemeToggle />
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => (window.location.href = "/")}
-                className="flex items-center gap-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Home
-              </Button>
+              {!isInIframe && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => (window.location.href = "/")}
+                  className="flex items-center gap-2"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Home
+                </Button>
+              )}
             </div>
           </div>
 
