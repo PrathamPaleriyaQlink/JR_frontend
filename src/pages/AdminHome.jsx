@@ -17,6 +17,125 @@ import { useAlerts } from "@/contexts/AlertContext";
 import { API_DASHBOARD_BASE } from "@/lib/api";
 
 const API_BASE = API_DASHBOARD_BASE;
+const COLORS = [
+  "red",
+  "blue",
+  "green",
+  "grey",
+  "gray",
+  "black",
+  "white",
+  "pink",
+  "beige",
+  "ivory",
+  "brown",
+  "gold",
+  "yellow",
+  "orange",
+  "purple",
+  "cream",
+  "natural",
+];
+const STOP_WORDS = new Set([
+  "the",
+  "and",
+  "for",
+  "with",
+  "that",
+  "this",
+  "from",
+  "have",
+  "want",
+  "need",
+  "show",
+  "please",
+  "rug",
+  "rugs",
+  "carpet",
+  "jaipur",
+  "price",
+  "hello",
+  "hi",
+  "you",
+  "can",
+  "are",
+  "any",
+  "all",
+  "like",
+  "more",
+]);
+
+const mostCommon = (counter, fallback = "N/A") => {
+  const entries = Object.entries(counter);
+  if (!entries.length) return fallback;
+  return entries.sort((a, b) => b[1] - a[1])[0][0];
+};
+
+const inferLocationFromPhone = (phone = "") => {
+  const value = String(phone).replace(/\D/g, "");
+  if (value.startsWith("91")) return "India";
+  if (value.startsWith("1")) return "US/Canada";
+  if (value.startsWith("44")) return "United Kingdom";
+  if (value.startsWith("971")) return "UAE";
+  if (value.startsWith("61")) return "Australia";
+  return "";
+};
+
+const buildFallbackInsights = async (conversations) => {
+  const keywordCounter = {};
+  const hourCounter = {};
+  const locationCounter = {};
+  const colorCounter = {};
+  const histories = await Promise.all(
+    conversations.slice(0, 50).map(async (conv) => {
+      const res = await fetch(`${API_BASE}/conversations/${encodeURIComponent(conv.phone)}`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.messages || [];
+    })
+  );
+
+  conversations.forEach((conv) => {
+    const location = inferLocationFromPhone(conv.phone);
+    if (location) locationCounter[location] = (locationCounter[location] || 0) + 1;
+  });
+
+  histories.flat().forEach((message) => {
+    const timestamp = message.timestamp ? new Date(message.timestamp) : null;
+    if (timestamp && !Number.isNaN(timestamp.getTime())) {
+      const hour = timestamp.toLocaleTimeString([], {
+        hour: "2-digit",
+        hour12: true,
+      });
+      hourCounter[hour] = (hourCounter[hour] || 0) + 1;
+    }
+
+    const content = String(message.content || "").toLowerCase();
+    COLORS.forEach((color) => {
+      if (content.includes(color)) {
+        const key = color === "gray" ? "grey" : color;
+        colorCounter[key] = (colorCounter[key] || 0) + 1;
+      }
+    });
+
+    if (message.direction !== "inbound") return;
+    content
+      .replace(/https?:\/\/\S+/g, " ")
+      .replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter((word) => word.length > 2 && !STOP_WORDS.has(word))
+      .forEach((word) => {
+        keywordCounter[word] = (keywordCounter[word] || 0) + 1;
+      });
+  });
+
+  return {
+    most_searched_keyword: mostCommon(keywordCounter),
+    active_time: mostCommon(hourCounter),
+    highest_traffic_location: mostCommon(locationCounter),
+    highest_interested_color: mostCommon(colorCounter),
+  };
+};
 
 export default function AdminHome() {
   const { alerts } = useAlerts();
@@ -53,6 +172,7 @@ export default function AdminHome() {
           if (!res.ok) throw new Error("Failed to fetch dashboard stats");
           const stats = await res.json();
           let activeUsers = 0;
+          let insights = {};
           try {
             const conversationsRes = await fetch(`${API_BASE}/conversations`);
             const conversations = conversationsRes.ok
@@ -67,8 +187,11 @@ export default function AdminHome() {
                   return lastMessageAt >= activeCutoff;
                 }).length
               : 0;
+            insights = Array.isArray(conversations)
+              ? await buildFallbackInsights(conversations)
+              : {};
           } catch (err) {
-            console.error("Error fetching fallback active users", err);
+            console.error("Error fetching fallback dashboard insights", err);
           }
           data = {
             overview: {
@@ -77,7 +200,7 @@ export default function AdminHome() {
               total_leads: stats.total_leads ?? 0,
               total_messages: stats.total_messages ?? 0,
             },
-            insights: {},
+            insights,
           };
         }
         if (isMounted) {
