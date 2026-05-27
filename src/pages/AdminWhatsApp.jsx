@@ -8,6 +8,7 @@ import {
   Phone,
   Search,
   UserCheck,
+  Bot,
 } from "lucide-react";
 import { CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -123,6 +124,32 @@ export default function AdminWhatsApp() {
       fetchConversations();
     } catch (err) {
       console.error("Failed to take over conversation", err);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleReturnToAi = async () => {
+    if (!selectedPhone || sending) return;
+
+    setSending(true);
+    try {
+      const res = await fetch(
+        `${API_BASE}/conversations/${encodeURIComponent(selectedPhone)}/toggle-ai`,
+        { method: "POST" }
+      );
+      const data = await res.json();
+      if (typeof data.is_ai === "boolean") {
+        setConversations((prev) =>
+          prev.map((conv) =>
+            conv.phone === selectedPhone ? { ...conv, is_ai: data.is_ai } : conv
+          )
+        );
+      }
+      fetchMessages(selectedPhone);
+      fetchConversations();
+    } catch (err) {
+      console.error("Failed to return conversation to AI", err);
     } finally {
       setSending(false);
     }
@@ -317,6 +344,18 @@ export default function AdminWhatsApp() {
                   >
                     <UserCheck className="w-4 h-4" />
                     Take over
+                  </Button>
+                )}
+                {selectedConv && !selectedConv.is_ai && (
+                  <Button
+                    onClick={handleReturnToAi}
+                    disabled={sending}
+                    size="sm"
+                    variant="outline"
+                    className="gap-2"
+                  >
+                    <Bot className="w-4 h-4" />
+                    Back to AI
                   </Button>
                 )}
               </div>
