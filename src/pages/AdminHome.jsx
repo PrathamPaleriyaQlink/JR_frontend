@@ -8,13 +8,15 @@ import {
   MapPin,
   Palette,
   Bell,
+  MessageSquare,
+  Target,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Separator } from "@/components/ui/separator";
 import { useAlerts } from "@/contexts/AlertContext";
-import { API_WEB_BASE } from "@/lib/api";
+import { API_DASHBOARD_BASE } from "@/lib/api";
 
-const API_BASE = API_WEB_BASE;
+const API_BASE = API_DASHBOARD_BASE;
 
 export default function AdminHome() {
   const { alerts } = useAlerts();
@@ -24,6 +26,8 @@ export default function AdminHome() {
     overview: {
       active_users: 0,
       total_users: 0,
+      total_leads: 0,
+      total_messages: 0,
     },
     insights: {
       most_searched_keyword: "N/A",
@@ -40,15 +44,49 @@ export default function AdminHome() {
     const fetchDashboardData = async () => {
       try {
         setLoadingDashboard(true);
-        const res = await fetch(`${API_BASE}/dashboard/insights`);
-        if (!res.ok) throw new Error("Failed to fetch dashboard insights");
-
-        const data = await res.json();
+        let res = await fetch(`${API_BASE}/dashboard/insights`);
+        let data;
+        if (res.ok) {
+          data = await res.json();
+        } else {
+          res = await fetch(`${API_BASE}/stats`);
+          if (!res.ok) throw new Error("Failed to fetch dashboard stats");
+          const stats = await res.json();
+          let activeUsers = 0;
+          try {
+            const conversationsRes = await fetch(`${API_BASE}/conversations`);
+            const conversations = conversationsRes.ok
+              ? await conversationsRes.json()
+              : [];
+            const activeCutoff = Date.now() - 30 * 60 * 1000;
+            activeUsers = Array.isArray(conversations)
+              ? conversations.filter((conv) => {
+                  const lastMessageAt = conv.last_message_at
+                    ? new Date(conv.last_message_at).getTime()
+                    : 0;
+                  return lastMessageAt >= activeCutoff;
+                }).length
+              : 0;
+          } catch (err) {
+            console.error("Error fetching fallback active users", err);
+          }
+          data = {
+            overview: {
+              active_users: activeUsers,
+              total_users: stats.total_users ?? 0,
+              total_leads: stats.total_leads ?? 0,
+              total_messages: stats.total_messages ?? 0,
+            },
+            insights: {},
+          };
+        }
         if (isMounted) {
           setDashboardData({
             overview: {
               active_users: data?.overview?.active_users ?? 0,
               total_users: data?.overview?.total_users ?? 0,
+              total_leads: data?.overview?.total_leads ?? 0,
+              total_messages: data?.overview?.total_messages ?? 0,
             },
             insights: {
               most_searched_keyword: data?.insights?.most_searched_keyword || "N/A",
@@ -90,6 +128,22 @@ export default function AdminHome() {
         : dashboardData.overview.total_users.toLocaleString(),
       icon: <Users className="h-5 w-5 text-green-500" />,
       onClick: () => navigate("/admin/users"),
+    },
+    {
+      title: "Total Leads",
+      value: loadingDashboard
+        ? "..."
+        : dashboardData.overview.total_leads.toLocaleString(),
+      icon: <Target className="h-5 w-5 text-orange-500" />,
+      onClick: () => navigate("/admin/leads"),
+    },
+    {
+      title: "Total Messages",
+      value: loadingDashboard
+        ? "..."
+        : dashboardData.overview.total_messages.toLocaleString(),
+      icon: <MessageSquare className="h-5 w-5 text-purple-500" />,
+      onClick: () => navigate("/admin/whatsapp"),
     },
   ];
 
@@ -155,7 +209,7 @@ export default function AdminHome() {
           <h2 className="text-lg font-medium text-muted-foreground mb-4">
             Overview
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {mainCards.map((card, idx) => (
               <Card
                 key={idx}
