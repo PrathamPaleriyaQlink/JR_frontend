@@ -6,6 +6,9 @@ const AlertContext = createContext();
 const playAlertSound = () => {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === "suspended") {
+      ctx.resume();
+    }
     const beep = (startTime, freq, duration) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -21,6 +24,7 @@ const playAlertSound = () => {
     const t = ctx.currentTime;
     beep(t, 880, 0.18);
     beep(t + 0.25, 1100, 0.18);
+    beep(t + 0.5, 880, 0.18);
   } catch {
     // Audio API blocked or unavailable — fail silently
   }
@@ -64,7 +68,7 @@ export const AlertProvider = ({ children }) => {
 
   useEffect(() => {
     fetchAlerts();
-    const interval = setInterval(fetchAlerts, 30000);
+    const interval = setInterval(fetchAlerts, 5000);
     return () => clearInterval(interval);
   }, []);
 
