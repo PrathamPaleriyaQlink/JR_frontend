@@ -9,7 +9,7 @@ import { useNavigate } from "react-router-dom";
 
 export default function AdminLayout() {
   const location = useLocation();
-  const { alerts } = useAlerts();
+  const { alerts, newAlertSignal } = useAlerts();
 
   const [showBanner, setShowBanner] = React.useState(false);
 
@@ -24,7 +24,7 @@ export default function AdminLayout() {
 
 
   React.useEffect(() => {
-    if (alerts.length > 0) {
+    if (newAlertSignal > 0) {
       setShowBanner(true);
 
       const timer = setTimeout(() => {
@@ -33,7 +33,7 @@ export default function AdminLayout() {
 
       return () => clearTimeout(timer);
     }
-  }, [alerts]);
+  }, [newAlertSignal]);
 
   const getTabVariant = (path) =>
     location.pathname.startsWith(path) ? "default" : "ghost";
@@ -101,7 +101,7 @@ export default function AdminLayout() {
           </Link>
         </div>
 
-        {/* 🔔 Alerts Button In Sidebar */}
+        {/* Alerts Button In Sidebar */}
         <Link to="/admin/alerts" className="relative">
           <Button
             variant={getTabVariant("/admin/alerts")}
@@ -135,7 +135,7 @@ export default function AdminLayout() {
         {showBanner && alerts.length > 0 && (
           <div className="w-full bg-red-100 border-b border-red-300 text-red-800 px-6 py-3 flex items-center justify-between text-sm">
             <div className="font-medium">
-              🔔 You have <span className="font-semibold">{alerts.length}</span>{" "}
+              You have <span className="font-semibold">{alerts.length}</span>{" "}
               active alerts.
             </div>
 

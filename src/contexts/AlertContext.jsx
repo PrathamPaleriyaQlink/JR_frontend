@@ -32,6 +32,7 @@ const playAlertSound = () => {
 
 export const AlertProvider = ({ children }) => {
   const [alerts, setAlerts] = useState([]);
+  const [newAlertSignal, setNewAlertSignal] = useState(0);
   const seenAlertIdsRef = useRef(new Set());
   const initializedRef = useRef(false);
 
@@ -50,6 +51,7 @@ export const AlertProvider = ({ children }) => {
       // Play sound only after first load and only when a new alert appears.
       if (initializedRef.current && hasNewAlert) {
         playAlertSound();
+        setNewAlertSignal((prev) => prev + 1);
       }
 
       seenAlertIdsRef.current = newIds;
@@ -79,7 +81,9 @@ export const AlertProvider = ({ children }) => {
   }, []);
 
   return (
-    <AlertContext.Provider value={{ alerts, deleteAlert, fetchAlerts }}>
+    <AlertContext.Provider
+      value={{ alerts, deleteAlert, fetchAlerts, newAlertSignal }}
+    >
       {children}
     </AlertContext.Provider>
   );
