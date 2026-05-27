@@ -7,6 +7,7 @@ import {
   Send,
   Phone,
   Search,
+  UserCheck,
 } from "lucide-react";
 import { CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,26 +28,40 @@ export default function AdminWhatsApp() {
   const [sending, setSending] = useState(false);
   const chatEndRef = useRef(null);
   const pollRef = useRef(null);
+  const previousMessageCountRef = useRef(0);
+  const messagesRef = useRef([]);
 
-  const fetchConversations = () => {
+  const fetchConversations = ({ silent = false } = {}) => {
+    if (!silent) setLoadingConversations(true);
     fetch(`${API_BASE}/conversations`)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) setConversations(data);
       })
       .catch(console.error)
-      .finally(() => setLoadingConversations(false));
+      .finally(() => {
+        if (!silent) setLoadingConversations(false);
+      });
   };
 
-  const fetchMessages = (phone) => {
-    setLoadingMessages(true);
+  const fetchMessages = (phone, { silent = false } = {}) => {
+    if (!silent) setLoadingMessages(true);
     fetch(`${API_BASE}/conversations/${encodeURIComponent(phone)}`)
       .then((res) => res.json())
       .then((data) => {
-        setMessages(data.messages || []);
+        const nextMessages = data.messages || [];
+        const hasChanged =
+          JSON.stringify(nextMessages) !== JSON.stringify(messagesRef.current);
+
+        if (!silent || hasChanged) {
+          messagesRef.current = nextMessages;
+          setMessages(nextMessages);
+        }
       })
       .catch(console.error)
-      .finally(() => setLoadingMessages(false));
+      .finally(() => {
+        if (!silent) setLoadingMessages(false);
+      });
   };
 
   useEffect(() => {
@@ -58,20 +73,43 @@ export default function AdminWhatsApp() {
     fetchMessages(selectedPhone);
 
     pollRef.current = setInterval(() => {
-      fetchMessages(selectedPhone);
-      fetchConversations();
+      fetchMessages(selectedPhone, { silent: true });
+      fetchConversations({ silent: true });
     }, 5000);
 
     return () => clearInterval(pollRef.current);
   }, [selectedPhone]);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messages.length > previousMessageCountRef.current) {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+    previousMessageCountRef.current = messages.length;
   }, [messages]);
 
   const handleSelectConversation = (phone) => {
     setSelectedPhone(phone);
     setMessages([]);
+    messagesRef.current = [];
+    previousMessageCountRef.current = 0;
+  };
+
+  const handleTakeover = async () => {
+    if (!selectedPhone || sending) return;
+
+    setSending(true);
+    try {
+      await fetch(
+        `${API_BASE}/conversations/${encodeURIComponent(selectedPhone)}/takeover`,
+        { method: "POST" }
+      );
+      fetchMessages(selectedPhone);
+      fetchConversations();
+    } catch (err) {
+      console.error("Failed to take over conversation", err);
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleSend = async () => {
@@ -124,7 +162,6 @@ export default function AdminWhatsApp() {
 
   return (
     <div className="flex flex-1 h-screen relative">
-      {/* Contacts Sidebar */}
       <div
         className={`${
           sidebarCollapsed ? "w-0" : "w-72"
@@ -132,16 +169,19 @@ export default function AdminWhatsApp() {
       >
         <div className="p-3 border-b flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-sm uppercase tracking-wide">WhatsApp</h2>
+            <h2 className="font-semibold text-sm uppercase tracking-wide">
+              WhatsApp
+            </h2>
             <span className="text-xs text-muted-foreground">
-              {loadingConversations ? "…" : filteredConversations.length}/{conversations.length}
+              {loadingConversations ? "..." : filteredConversations.length}/
+              {conversations.length}
             </span>
           </div>
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-muted-foreground" />
             <input
               className="w-full pl-8 pr-3 py-2 text-xs border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="Search name or number…"
+              placeholder="Search name or number..."
               value={convSearch}
               onChange={(e) => setConvSearch(e.target.value)}
             />
@@ -200,7 +240,6 @@ export default function AdminWhatsApp() {
         </div>
       </div>
 
-      {/* Toggle Sidebar */}
       <button
         onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
         className="absolute left-0 top-30 z-10 bg-card border border-l-0 rounded-r-lg p-2 hover:bg-muted/50 transition-all duration-200 shadow-md"
@@ -216,7 +255,6 @@ export default function AdminWhatsApp() {
         )}
       </button>
 
-      {/* Chat Area */}
       <div className="flex-1 flex flex-col bg-background overflow-hidden">
         {!selectedPhone ? (
           <div className="flex-1 flex items-center justify-center bg-muted/30">
@@ -232,7 +270,6 @@ export default function AdminWhatsApp() {
           </div>
         ) : (
           <>
-            {/* Chat Header */}
             <div className="border-b px-6 py-3 flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center shrink-0">
                 <MessageSquare className="w-5 h-5 text-green-700" />
@@ -245,18 +282,39 @@ export default function AdminWhatsApp() {
                   {selectedPhone}
                 </p>
               </div>
-              <div className="relative ml-auto w-52">
+              <div className="ml-auto flex items-center gap-3">
+                <span
+                  className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                    selectedConv?.is_ai
+                      ? "bg-green-100 text-green-700"
+                      : "bg-orange-100 text-orange-700"
+                  }`}
+                >
+                  {selectedConv?.is_ai ? "AI active" : "Agent active"}
+                </span>
+                {selectedConv?.is_ai && (
+                  <Button
+                    onClick={handleTakeover}
+                    disabled={sending}
+                    size="sm"
+                    className="gap-2"
+                  >
+                    <UserCheck className="w-4 h-4" />
+                    Take over
+                  </Button>
+                )}
+              </div>
+              <div className="relative w-52">
                 <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-muted-foreground" />
                 <input
                   className="w-full pl-8 pr-3 py-2 text-xs border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="Search messages…"
+                  placeholder="Search messages..."
                   value={msgSearch}
                   onChange={(e) => setMsgSearch(e.target.value)}
                 />
               </div>
             </div>
 
-            {/* Messages */}
             <div className="flex-1 overflow-y-auto py-4 px-6 space-y-3">
               {loadingMessages ? (
                 <div className="flex items-center justify-center h-full">
@@ -264,14 +322,18 @@ export default function AdminWhatsApp() {
                 </div>
               ) : filteredMessages.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                  {msgSearch.trim() ? "No messages match your search" : "No messages yet"}
+                  {msgSearch.trim()
+                    ? "No messages match your search"
+                    : "No messages yet"}
                 </div>
               ) : (
                 filteredMessages.map((msg, i) => (
                   <div
                     key={i}
                     className={`flex ${
-                      msg.direction === "outbound" ? "justify-end" : "justify-start"
+                      msg.direction === "outbound"
+                        ? "justify-end"
+                        : "justify-start"
                     }`}
                   >
                     <div
@@ -319,11 +381,10 @@ export default function AdminWhatsApp() {
               <div ref={chatEndRef} />
             </div>
 
-            {/* Send Message */}
             <div className="border-t px-6 py-3 flex items-end gap-3">
               <textarea
                 className="flex-1 resize-none border rounded-xl px-4 py-2.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] max-h-32"
-                placeholder="Type a message… (Enter to send)"
+                placeholder="Type a message... (Enter to send)"
                 rows={1}
                 value={messageInput}
                 onChange={(e) => setMessageInput(e.target.value)}
