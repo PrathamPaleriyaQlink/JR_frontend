@@ -26,27 +26,33 @@ const playAlertSound = () => {
     beep(t + 0.25, 1100, 0.18);
     beep(t + 0.5, 880, 0.18);
   } catch {
-    // Audio API blocked or unavailable — fail silently
+    // Audio API blocked or unavailable; fail silently.
   }
 };
 
 export const AlertProvider = ({ children }) => {
   const [alerts, setAlerts] = useState([]);
-  const prevCountRef = useRef(0);
+  const seenAlertIdsRef = useRef(new Set());
   const initializedRef = useRef(false);
 
   const fetchAlerts = async () => {
     try {
       const res = await fetch(`${API_WEB_BASE}/alerts/all`);
       const data = await res.json();
-      const newAlerts = data || [];
+      const newAlerts = (data || []).sort(
+        (a, b) => (b.created_at || 0) - (a.created_at || 0)
+      );
+      const newIds = new Set(newAlerts.map((alert) => alert._id));
+      const hasNewAlert = newAlerts.some(
+        (alert) => !seenAlertIdsRef.current.has(alert._id)
+      );
 
-      // Play sound only after first load and only when count increases
-      if (initializedRef.current && newAlerts.length > prevCountRef.current) {
+      // Play sound only after first load and only when a new alert appears.
+      if (initializedRef.current && hasNewAlert) {
         playAlertSound();
       }
 
-      prevCountRef.current = newAlerts.length;
+      seenAlertIdsRef.current = newIds;
       initializedRef.current = true;
       setAlerts(newAlerts);
     } catch (err) {
@@ -60,7 +66,7 @@ export const AlertProvider = ({ children }) => {
         method: "DELETE",
       });
       setAlerts((prev) => prev.filter((a) => a._id !== id));
-      prevCountRef.current = Math.max(0, prevCountRef.current - 1);
+      seenAlertIdsRef.current.delete(id);
     } catch (err) {
       console.error("Error deleting alert", err);
     }
