@@ -16,6 +16,8 @@ import remarkGfm from "remark-gfm";
 import { API_DASHBOARD_BASE } from "@/lib/api";
 
 const API_BASE = API_DASHBOARD_BASE;
+const AGENT_TAKEOVER_MESSAGE =
+  "Thank you. Our rug specialist will assist you further over a call/message.";
 
 export default function AdminWhatsApp() {
   const [conversations, setConversations] = useState([]);
@@ -99,10 +101,24 @@ export default function AdminWhatsApp() {
 
     setSending(true);
     try {
-      await fetch(
+      const takeoverResponse = await fetch(
         `${API_BASE}/conversations/${encodeURIComponent(selectedPhone)}/takeover`,
         { method: "POST" }
       );
+      if (!takeoverResponse.ok) {
+        await fetch(
+          `${API_BASE}/conversations/${encodeURIComponent(selectedPhone)}/toggle-ai`,
+          { method: "POST" }
+        );
+        await fetch(`${API_BASE}/whatsapp/send`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phone: selectedPhone,
+            message: AGENT_TAKEOVER_MESSAGE,
+          }),
+        });
+      }
       fetchMessages(selectedPhone);
       fetchConversations();
     } catch (err) {
