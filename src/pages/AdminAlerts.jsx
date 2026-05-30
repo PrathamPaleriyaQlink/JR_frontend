@@ -45,7 +45,8 @@ const AdminAlerts = () => {
             <TableRow>
               <TableHead className="w-[55%]">Alert</TableHead>
               <TableHead className="w-[20%]">Session</TableHead>
-              <TableHead className="w-[17%]">Time</TableHead>
+              <TableHead className="w-[12%]">Queue</TableHead>
+              <TableHead className="w-[15%]">Time</TableHead>
               <TableHead className="text-center w-[8%]">Chat</TableHead>
               <TableHead className="text-center w-[5%]">Action</TableHead>
             </TableRow>
@@ -60,6 +61,11 @@ const AdminAlerts = () => {
 
                 <TableCell className="text-muted-foreground">
                   {alert.session_id}
+                </TableCell>
+
+                <TableCell className="text-muted-foreground">
+                  #{alert.queue_position || "-"}
+                  {alert.eta_minutes ? ` / ${alert.eta_minutes} min` : ""}
                 </TableCell>
 
                 <TableCell className="text-muted-foreground">
@@ -92,7 +98,7 @@ const AdminAlerts = () => {
             {alerts.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={6}
                   className="text-center py-10 text-muted-foreground"
                 >
                   No active alerts
