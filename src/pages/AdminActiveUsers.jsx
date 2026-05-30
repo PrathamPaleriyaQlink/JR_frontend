@@ -8,6 +8,8 @@ import {
   ChevronRight,
   Loader2,
   Paperclip,
+  Globe,
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +28,24 @@ import { useAdmin } from "@/contexts/AdminContext";
 import { API_WEB_BASE, WS_BASE } from "@/lib/api";
 
 const API_BASE = API_WEB_BASE;
+
+const formatDuration = (seconds = 0) => {
+  const value = Number(seconds) || 0;
+  if (value < 60) return `${value}s`;
+  const minutes = Math.floor(value / 60);
+  const remaining = value % 60;
+  return remaining ? `${minutes}m ${remaining}s` : `${minutes}m`;
+};
+
+const shortUrl = (url = "") => {
+  if (!url) return "Unknown";
+  try {
+    const parsed = new URL(url);
+    return `${parsed.hostname}${parsed.pathname}`;
+  } catch {
+    return url;
+  }
+};
 
 export default function AdminActiveUsers() {
   const [activeUsers, setActiveUsers] = useState([]);
@@ -125,6 +145,7 @@ export default function AdminActiveUsers() {
           chat_history_length: chatHistoryData.length,
           created_at: data.created_at?.$date || null,
           updated_at: data.updated_at?.$date || null,
+          visitor_insights: data.visitor_insights || {},
         });
 
         setChatHistory(chatHistoryData);
@@ -536,6 +557,11 @@ export default function AdminActiveUsers() {
                       ? `Country: +${selectedUserInfo.country_code}`
                       : "Active now"}
                   </p>
+                  {selectedUserInfo?.visitor_insights?.current_page && (
+                    <p className="text-xs text-muted-foreground truncate max-w-[360px]">
+                      Viewing: {shortUrl(selectedUserInfo.visitor_insights.current_page)}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-3 flex-shrink-0">
@@ -722,6 +748,90 @@ export default function AdminActiveUsers() {
           </DialogHeader>
           {selectedUserInfo && (
             <div className="space-y-3">
+              {selectedUserInfo.visitor_insights && (
+                <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    <Globe className="h-4 w-4" />
+                    Visitor Insights
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <span className="text-sm font-medium">Current Page:</span>
+                    <span className="text-sm col-span-2 break-all">
+                      {shortUrl(selectedUserInfo.visitor_insights.current_page)}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <span className="text-sm font-medium">Location:</span>
+                    <span className="text-sm col-span-2">
+                      {[
+                        selectedUserInfo.visitor_insights.city,
+                        selectedUserInfo.visitor_insights.country,
+                      ]
+                        .filter(Boolean)
+                        .join(", ") || "Unknown"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <span className="text-sm font-medium">IP Address:</span>
+                    <span className="text-sm col-span-2">
+                      {selectedUserInfo.visitor_insights.ip_address || "Unknown"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <span className="text-sm font-medium">Visitor Type:</span>
+                    <span className="text-sm col-span-2">
+                      {selectedUserInfo.visitor_insights.visitor_type || "Unknown"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <span className="text-sm font-medium">Visits / Chats:</span>
+                    <span className="text-sm col-span-2">
+                      {selectedUserInfo.visitor_insights.visit_count || 1} visit,{" "}
+                      {selectedUserInfo.visitor_insights.chat_count || 1} chat
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <span className="text-sm font-medium">Source:</span>
+                    <span className="text-sm col-span-2">
+                      {selectedUserInfo.visitor_insights.traffic_source || "Direct"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <span className="text-sm font-medium">Duration:</span>
+                    <span className="text-sm col-span-2">
+                      {formatDuration(
+                        selectedUserInfo.visitor_insights.chat_duration_seconds
+                      )}
+                    </span>
+                  </div>
+                  {Array.isArray(
+                    selectedUserInfo.visitor_insights.browsing_history
+                  ) &&
+                    selectedUserInfo.visitor_insights.browsing_history.length > 0 && (
+                      <div className="pt-2">
+                        <div className="mb-1 flex items-center gap-2 text-sm font-medium">
+                          <History className="h-4 w-4" />
+                          Browsing History
+                        </div>
+                        <div className="max-h-28 space-y-1 overflow-y-auto text-xs">
+                          {selectedUserInfo.visitor_insights.browsing_history
+                            .slice(-5)
+                            .reverse()
+                            .map((item, index) => (
+                              <div key={index} className="rounded border bg-background p-2">
+                                <div className="break-all font-medium">
+                                  {shortUrl(item.page)}
+                                </div>
+                                <div className="text-muted-foreground">
+                                  {item.traffic_source || "Direct"}
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                </div>
+              )}
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-sm font-medium">Session ID:</span>
                 <span className="text-sm font-mono col-span-2 break-all">

@@ -5,6 +5,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  Globe,
+  History,
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,6 +23,24 @@ import remarkGfm from "remark-gfm";
 import { API_WEB_BASE } from "@/lib/api";
 
 const API_BASE = API_WEB_BASE;
+
+const formatDuration = (seconds = 0) => {
+  const value = Number(seconds) || 0;
+  if (value < 60) return `${value}s`;
+  const minutes = Math.floor(value / 60);
+  const remaining = value % 60;
+  return remaining ? `${minutes}m ${remaining}s` : `${minutes}m`;
+};
+
+const shortUrl = (url = "") => {
+  if (!url) return "Unknown";
+  try {
+    const parsed = new URL(url);
+    return `${parsed.hostname}${parsed.pathname}`;
+  } catch {
+    return url;
+  }
+};
 
 export default function AdminAllUsers() {
   const [allUsers, setAllUsers] = useState([]);
@@ -457,6 +477,14 @@ export default function AdminAllUsers() {
                   </span>
                 </span>
               </div>
+              {selectedUserData.visitor_insights?.current_page && (
+                <div className="mt-2 text-xs text-muted-foreground">
+                  Current page:{" "}
+                  <span className="font-medium">
+                    {shortUrl(selectedUserData.visitor_insights.current_page)}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="flex-1 overflow-y-auto py-4 px-34 space-y-4 w-full">
@@ -529,6 +557,90 @@ export default function AdminAllUsers() {
               <DialogTitle>User Details</DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
+              {selectedUserData.visitor_insights && (
+                <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    <Globe className="h-4 w-4" />
+                    Visitor Insights
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <span className="text-sm font-medium">Current Page:</span>
+                    <span className="text-sm col-span-2 break-all">
+                      {shortUrl(selectedUserData.visitor_insights.current_page)}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <span className="text-sm font-medium">Location:</span>
+                    <span className="text-sm col-span-2">
+                      {[
+                        selectedUserData.visitor_insights.city,
+                        selectedUserData.visitor_insights.country,
+                      ]
+                        .filter(Boolean)
+                        .join(", ") || "Unknown"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <span className="text-sm font-medium">IP Address:</span>
+                    <span className="text-sm col-span-2">
+                      {selectedUserData.visitor_insights.ip_address || "Unknown"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <span className="text-sm font-medium">Visitor Type:</span>
+                    <span className="text-sm col-span-2">
+                      {selectedUserData.visitor_insights.visitor_type || "Unknown"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <span className="text-sm font-medium">Visits / Chats:</span>
+                    <span className="text-sm col-span-2">
+                      {selectedUserData.visitor_insights.visit_count || 1} visit,{" "}
+                      {selectedUserData.visitor_insights.chat_count || 1} chat
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <span className="text-sm font-medium">Source:</span>
+                    <span className="text-sm col-span-2">
+                      {selectedUserData.visitor_insights.traffic_source || "Direct"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <span className="text-sm font-medium">Duration:</span>
+                    <span className="text-sm col-span-2">
+                      {formatDuration(
+                        selectedUserData.visitor_insights.chat_duration_seconds
+                      )}
+                    </span>
+                  </div>
+                  {Array.isArray(
+                    selectedUserData.visitor_insights.browsing_history
+                  ) &&
+                    selectedUserData.visitor_insights.browsing_history.length > 0 && (
+                      <div className="pt-2">
+                        <div className="mb-1 flex items-center gap-2 text-sm font-medium">
+                          <History className="h-4 w-4" />
+                          Browsing History
+                        </div>
+                        <div className="max-h-28 space-y-1 overflow-y-auto text-xs">
+                          {selectedUserData.visitor_insights.browsing_history
+                            .slice(-5)
+                            .reverse()
+                            .map((item, index) => (
+                              <div key={index} className="rounded border bg-background p-2">
+                                <div className="break-all font-medium">
+                                  {shortUrl(item.page)}
+                                </div>
+                                <div className="text-muted-foreground">
+                                  {item.traffic_source || "Direct"}
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                </div>
+              )}
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-sm font-medium">User Name:</span>
                 <span className="text-sm col-span-2">

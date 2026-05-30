@@ -29,6 +29,41 @@ const SEARCH_LINK_RE = /\[([^\]]*(?:search|browse|more rugs)[^\]]*)\]\((https?:\
 const PLAIN_SEARCH_URL_RE = /https?:\/\/(?:www\.)?jaipurrugs\.com\/(?:in\/)?search(?:\?[^\s)]+)?/gi;
 const SEARCH_PROMPT_LINE_RE = /(?:you can )?(?:search|browse|show) more (?:products|rugs)(?: here)?:\s*$/i;
 const JR_SEARCH_URL = "https://www.jaipurrugs.com/in/search";
+const VISITOR_ID_KEY = "jr_visitor_id";
+const VISIT_COUNT_KEY = "jr_visit_count";
+const CHAT_COUNT_KEY = "jr_chat_count";
+
+function getOrCreateVisitorId() {
+  const existing = localStorage.getItem(VISITOR_ID_KEY);
+  if (existing) return existing;
+  const id = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+  localStorage.setItem(VISITOR_ID_KEY, id);
+  return id;
+}
+
+function incrementLocalCount(key) {
+  const next = Number(localStorage.getItem(key) || "0") + 1;
+  localStorage.setItem(key, String(next));
+  return next;
+}
+
+function getVisiblePageUrl() {
+  if (window.self !== window.top && document.referrer) {
+    return document.referrer;
+  }
+  return window.location.href;
+}
+
+function getTrafficSource(referrer) {
+  const value = (referrer || "").toLowerCase();
+  if (!value) return "Direct";
+  if (value.includes("google.")) return "Google";
+  if (value.includes("instagram.")) return "Instagram";
+  if (value.includes("facebook.") || value.includes("fb.")) return "Facebook";
+  if (value.includes("bing.")) return "Bing";
+  if (value.includes("jaipurrugs.com")) return "Jaipur Rugs Website";
+  return "Referral";
+}
 
 function extractSearchCta(content) {
   let searchUrl = null;
@@ -130,6 +165,20 @@ export default function UserPage() {
 
   const wsRef = useRef(null);
   const chatEndRef = useRef(null);
+  const visitorRef = useRef({
+    visitorId: "",
+    visitCount: 1,
+    chatCount: Number(localStorage.getItem(CHAT_COUNT_KEY) || "0"),
+    chatStartedAt: null,
+  });
+
+  useEffect(() => {
+    visitorRef.current = {
+      ...visitorRef.current,
+      visitorId: getOrCreateVisitorId(),
+      visitCount: incrementLocalCount(VISIT_COUNT_KEY),
+    };
+  }, []);
 
   const handleUserSubmit = () => {
     if (!userName.trim() || !userEmail.trim()) {
@@ -144,9 +193,43 @@ export default function UserPage() {
     }
 
     const normalizedEmail = userEmail.trim().toLowerCase();
+    visitorRef.current.chatStartedAt = new Date();
+    visitorRef.current.chatCount = incrementLocalCount(CHAT_COUNT_KEY);
     setUserEmail(normalizedEmail);
     setSessionId(normalizedEmail);
     setShowUserDialog(false);
+  };
+
+  const sendVisitorInsights = (eventType = "page_view") => {
+    if (!sessionId) return;
+
+    const now = new Date();
+    const chatStartedAt = visitorRef.current.chatStartedAt || now;
+    const currentPage = getVisiblePageUrl();
+    const referrer = document.referrer || "";
+
+    fetch(`${API_BASE}/visitor-insights/${encodeURIComponent(sessionId)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event_type: eventType,
+        visitor_id: visitorRef.current.visitorId,
+        user_name: userName,
+        current_page: currentPage,
+        current_page_title: document.title || "",
+        referrer,
+        traffic_source: getTrafficSource(referrer),
+        visit_count: visitorRef.current.visitCount,
+        chat_count: visitorRef.current.chatCount || 1,
+        chat_started_at: chatStartedAt.toISOString(),
+        last_seen_at: now.toISOString(),
+        chat_duration_seconds: Math.max(
+          0,
+          Math.round((now.getTime() - chatStartedAt.getTime()) / 1000)
+        ),
+        country_code: countryCode,
+      }),
+    }).catch((err) => console.error("Visitor insights error:", err));
   };
 
   useEffect(() => {
@@ -159,6 +242,7 @@ export default function UserPage() {
   useEffect(() => {
     if (!sessionId) return;
     setLoadingHistory(true);
+    sendVisitorInsights("chat_start");
 
     fetch(`${API_BASE}/chat_history/${encodeURIComponent(sessionId)}`)
       .then((res) => {
@@ -180,6 +264,19 @@ export default function UserPage() {
       .catch((err) => console.error(err))
       .finally(() => setLoadingHistory(false));
   }, [sessionId]);
+
+  useEffect(() => {
+    if (!sessionId || showUserDialog) return;
+    const interval = setInterval(() => sendVisitorInsights("heartbeat"), 30000);
+    const handleVisibility = () => sendVisitorInsights("visibility");
+    window.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("pagehide", handleVisibility);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("pagehide", handleVisibility);
+    };
+  }, [sessionId, showUserDialog, userName, countryCode]);
 
   useEffect(() => {
     if (!sessionId || !countryCode || showUserDialog) return;
