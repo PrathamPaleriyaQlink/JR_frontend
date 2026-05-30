@@ -9,7 +9,9 @@ import {
   Search,
   UserCheck,
   Bot,
+  Radio,
 } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import { CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import ReactMarkdown from "react-markdown";
@@ -18,7 +20,7 @@ import { API_DASHBOARD_BASE } from "@/lib/api";
 
 const API_BASE = API_DASHBOARD_BASE;
 const AGENT_TAKEOVER_MESSAGE =
-  "Thank you. Our rug specialist will assist you further over a call/message.";
+  "Our rug specialist will connect soon as per availability. We request your patience.";
 
 export default function AdminWhatsApp() {
   const [conversations, setConversations] = useState([]);
@@ -29,6 +31,9 @@ export default function AdminWhatsApp() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [messageInput, setMessageInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [agentStatus, setAgentStatus] = useState(null);
+  const [statusSaving, setStatusSaving] = useState(false);
+  const [searchParams] = useSearchParams();
   const chatEndRef = useRef(null);
   const pollRef = useRef(null);
   const previousMessageCountRef = useRef(0);
@@ -45,6 +50,13 @@ export default function AdminWhatsApp() {
       .finally(() => {
         if (!silent) setLoadingConversations(false);
       });
+  };
+
+  const fetchAgentStatus = () => {
+    fetch(`${API_BASE}/agent-status`)
+      .then((res) => res.json())
+      .then((data) => setAgentStatus(data))
+      .catch(console.error);
   };
 
   const fetchMessages = (phone, { silent = false } = {}) => {
@@ -69,7 +81,15 @@ export default function AdminWhatsApp() {
 
   useEffect(() => {
     fetchConversations();
+    fetchAgentStatus();
   }, []);
+
+  useEffect(() => {
+    const phoneFromUrl = searchParams.get("phone");
+    if (phoneFromUrl) {
+      handleSelectConversation(phoneFromUrl);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!selectedPhone) return;
@@ -155,6 +175,24 @@ export default function AdminWhatsApp() {
     }
   };
 
+  const handleAgentStatusChange = async (manualStatus) => {
+    if (statusSaving) return;
+    setStatusSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/agent-status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ manual_status: manualStatus }),
+      });
+      const data = await res.json();
+      setAgentStatus(data);
+    } catch (err) {
+      console.error("Failed to update agent status", err);
+    } finally {
+      setStatusSaving(false);
+    }
+  };
+
   const handleSend = async () => {
     const text = messageInput.trim();
     if (!text || !selectedPhone || sending) return;
@@ -202,6 +240,7 @@ export default function AdminWhatsApp() {
     : messages;
 
   const selectedConv = conversations.find((c) => c.phone === selectedPhone);
+  const statusIsAccepting = agentStatus?.manual_status !== "offline";
 
   return (
     <div className="flex flex-1 h-screen relative">
@@ -313,7 +352,7 @@ export default function AdminWhatsApp() {
           </div>
         ) : (
           <>
-            <div className="border-b px-6 py-3 flex items-center gap-3">
+            <div className="border-b px-6 py-3 flex items-center gap-3 sticky top-0 z-20 bg-background">
               <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center shrink-0">
                 <MessageSquare className="w-5 h-5 text-green-700" />
               </div>
@@ -326,6 +365,37 @@ export default function AdminWhatsApp() {
                 </p>
               </div>
               <div className="ml-auto flex items-center gap-3">
+                <div className="flex items-center gap-2 rounded-lg border bg-card px-2 py-1">
+                  <Radio
+                    className={`w-4 h-4 ${
+                      agentStatus?.is_accepting_chats
+                        ? "text-green-600"
+                        : "text-red-600"
+                    }`}
+                  />
+                  <span className="text-xs font-medium">
+                    {agentStatus?.label || "Checking"}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={statusSaving}
+                    onClick={() =>
+                      handleAgentStatusChange(
+                        statusIsAccepting ? "offline" : "accepting"
+                      )
+                    }
+                    className={`relative h-6 w-11 rounded-full transition ${
+                      statusIsAccepting ? "bg-green-500" : "bg-muted"
+                    } disabled:opacity-60`}
+                    aria-label="Toggle agent live status"
+                  >
+                    <span
+                      className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition ${
+                        statusIsAccepting ? "left-6" : "left-1"
+                      }`}
+                    />
+                  </button>
+                </div>
                 <span
                   className={`text-xs px-2.5 py-1 rounded-full font-medium ${
                     selectedConv?.is_ai
@@ -368,6 +438,34 @@ export default function AdminWhatsApp() {
                   onChange={(e) => setMsgSearch(e.target.value)}
                 />
               </div>
+            </div>
+
+            <div className="absolute right-6 top-20 z-20 flex items-center gap-2 rounded-lg border bg-background/95 px-3 py-2 shadow-md">
+              <span className="text-xs font-medium">
+                {selectedConv?.is_ai ? "AI active" : "Agent active"}
+              </span>
+              {selectedConv?.is_ai ? (
+                <Button
+                  onClick={handleTakeover}
+                  disabled={sending}
+                  size="sm"
+                  className="gap-2"
+                >
+                  <UserCheck className="w-4 h-4" />
+                  Take over
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleReturnToAi}
+                  disabled={sending}
+                  size="sm"
+                  variant="outline"
+                  className="gap-2"
+                >
+                  <Bot className="w-4 h-4" />
+                  Back to AI
+                </Button>
+              )}
             </div>
 
             <div className="flex-1 overflow-y-auto py-4 px-6 space-y-3">

@@ -28,13 +28,14 @@ const API_BASE = API_WEB_BASE;
 const SEARCH_LINK_RE = /\[([^\]]*(?:search|browse|more rugs)[^\]]*)\]\((https?:\/\/[^)]+)\)/gi;
 const PLAIN_SEARCH_URL_RE = /https?:\/\/(?:www\.)?jaipurrugs\.com\/(?:in\/)?search(?:\?[^\s)]+)?/gi;
 const SEARCH_PROMPT_LINE_RE = /(?:you can )?(?:search|browse|show) more (?:products|rugs)(?: here)?:\s*$/i;
+const JR_SEARCH_URL = "https://www.jaipurrugs.com/in/search";
 
 function extractSearchCta(content) {
   let searchUrl = null;
   let searchLabel = "Search More Rugs";
   let cleaned = content.replace(SEARCH_LINK_RE, (match, label, url) => {
     if (!searchUrl && /(?:\/search|\bsearch\b|\bbrowse\b|more rugs)/i.test(url + label)) {
-      searchUrl = url;
+      searchUrl = JR_SEARCH_URL;
       searchLabel = label.replace(/[^\w\s]/g, "").trim() || "Search More Rugs";
     }
     return "";
@@ -42,7 +43,7 @@ function extractSearchCta(content) {
 
   cleaned = cleaned
     .replace(PLAIN_SEARCH_URL_RE, (url) => {
-      if (!searchUrl) searchUrl = url;
+      if (!searchUrl) searchUrl = JR_SEARCH_URL;
       return "";
     })
     .split("\n")

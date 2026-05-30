@@ -6,11 +6,18 @@ import {
   TableBody,
   TableCell,
 } from "@/components/ui/table";
-import { X } from "lucide-react";
+import { MessageSquare, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useAlerts } from "@/contexts/AlertContext";
+import { Button } from "@/components/ui/button";
 
 const AdminAlerts = () => {
   const { alerts, deleteAlert } = useAlerts();
+  const navigate = useNavigate();
+  const goToChat = async (alert) => {
+    navigate(`/admin/whatsapp?phone=${encodeURIComponent(alert.session_id || "")}`);
+    await deleteAlert(alert._id);
+  };
   const formatTime = (createdAt) => {
     if (!createdAt) return "Unknown";
     return new Date(createdAt * 1000).toLocaleString();
@@ -38,7 +45,8 @@ const AdminAlerts = () => {
             <TableRow>
               <TableHead className="w-[55%]">Alert</TableHead>
               <TableHead className="w-[20%]">Session</TableHead>
-              <TableHead className="w-[20%]">Time</TableHead>
+              <TableHead className="w-[17%]">Time</TableHead>
+              <TableHead className="text-center w-[8%]">Chat</TableHead>
               <TableHead className="text-center w-[5%]">Action</TableHead>
             </TableRow>
           </TableHeader>
@@ -59,6 +67,18 @@ const AdminAlerts = () => {
                 </TableCell>
 
                 <TableCell className="text-center">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => goToChat(alert)}
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                    Go To Chat
+                  </Button>
+                </TableCell>
+
+                <TableCell className="text-center">
                   <button
                     onClick={() => deleteAlert(alert._id)}
                     className="p-2 rounded-lg hover:bg-red-100 transition"
@@ -72,7 +92,7 @@ const AdminAlerts = () => {
             {alerts.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={4}
+                  colSpan={5}
                   className="text-center py-10 text-muted-foreground"
                 >
                   No active alerts

@@ -1,6 +1,16 @@
 import React from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { Home, Users, UserCheck, LogOutIcon, Brain, Bell, MessageSquare, Target, Package } from "lucide-react";
+import {
+  Home,
+  UserCheck,
+  LogOutIcon,
+  Brain,
+  Bell,
+  BotMessageSquare,
+  MessageCircle,
+  Target,
+  Package,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useAlerts } from "@/contexts/AlertContext";
@@ -72,7 +82,7 @@ export default function AdminLayout() {
 
           <Link to="/admin/users">
             <Button variant={getTabVariant("/admin/users")} size="icon">
-              <Users className="w-5 h-5" />
+              <BotMessageSquare className="w-5 h-5" />
             </Button>
           </Link>
 
@@ -84,7 +94,7 @@ export default function AdminLayout() {
 
           <Link to="/admin/whatsapp">
             <Button variant={getTabVariant("/admin/whatsapp")} size="icon">
-              <MessageSquare className="w-5 h-5" />
+              <MessageCircle className="w-5 h-5" />
             </Button>
           </Link>
 
