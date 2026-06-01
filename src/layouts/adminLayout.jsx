@@ -69,43 +69,78 @@ export default function AdminLayout() {
         {/* Sidebar Nav */}
         <div className="flex-1 flex flex-col items-center space-y-4">
           <Link to="/admin">
-            <Button variant={getTabVariant1("/admin")} size="icon">
+            <Button
+              variant={getTabVariant1("/admin")}
+              size="icon"
+              title="Dashboard"
+              aria-label="Dashboard"
+            >
               <Home className="w-5 h-5" />
             </Button>
           </Link>
 
           <Link to="/admin/active">
-            <Button variant={getTabVariant("/admin/active")} size="icon">
+            <Button
+              variant={getTabVariant("/admin/active")}
+              size="icon"
+              title="Active Web Chat"
+              aria-label="Active Web Chat"
+            >
               <UserCheck className="w-5 h-5" />
             </Button>
           </Link>
 
           <Link to="/admin/users">
-            <Button variant={getTabVariant("/admin/users")} size="icon">
+            <Button
+              variant={getTabVariant("/admin/users")}
+              size="icon"
+              title="Web Chat"
+              aria-label="Web Chat"
+            >
               <BotMessageSquare className="w-5 h-5" />
             </Button>
           </Link>
 
           <Link to="/admin/kb">
-            <Button variant={getTabVariant("/admin/kb")} size="icon">
+            <Button
+              variant={getTabVariant("/admin/kb")}
+              size="icon"
+              title="Knowledge Base"
+              aria-label="Knowledge Base"
+            >
               <Brain className="w-5 h-5" />
             </Button>
           </Link>
 
           <Link to="/admin/whatsapp">
-            <Button variant={getTabVariant("/admin/whatsapp")} size="icon">
+            <Button
+              variant={getTabVariant("/admin/whatsapp")}
+              size="icon"
+              title="WhatsApp"
+              aria-label="WhatsApp"
+            >
               <MessageCircle className="w-5 h-5" />
             </Button>
           </Link>
 
           <Link to="/admin/leads">
-            <Button variant={getTabVariant("/admin/leads")} size="icon">
+            <Button
+              variant={getTabVariant("/admin/leads")}
+              size="icon"
+              title="Leads"
+              aria-label="Leads"
+            >
               <Target className="w-5 h-5" />
             </Button>
           </Link>
 
           <Link to="/admin/products">
-            <Button variant={getTabVariant("/admin/products")} size="icon">
+            <Button
+              variant={getTabVariant("/admin/products")}
+              size="icon"
+              title="Products"
+              aria-label="Products"
+            >
               <Package className="w-5 h-5" />
             </Button>
           </Link>
