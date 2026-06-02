@@ -32,6 +32,20 @@ const JR_SEARCH_URL = "https://www.jaipurrugs.com/in/search";
 const VISITOR_ID_KEY = "jr_visitor_id";
 const VISIT_COUNT_KEY = "jr_visit_count";
 const CHAT_COUNT_KEY = "jr_chat_count";
+const COUNTRY_OPTIONS = {
+  "91": { iso: "IN", flag: "🇮🇳", label: "IN +91" },
+  "1": { iso: "US", flag: "🇺🇸", label: "US +1" },
+  "44": { iso: "GB", flag: "🇬🇧", label: "UK +44" },
+  "61": { iso: "AU", flag: "🇦🇺", label: "AU +61" },
+  "971": { iso: "AE", flag: "🇦🇪", label: "AE +971" },
+};
+const GEO_COUNTRY_TO_DIAL_CODE = {
+  IN: "91",
+  US: "1",
+  GB: "44",
+  AU: "61",
+  AE: "971",
+};
 
 function getOrCreateVisitorId() {
   const existing = localStorage.getItem(VISITOR_ID_KEY);
@@ -165,6 +179,7 @@ export default function UserPage() {
 
   const wsRef = useRef(null);
   const chatEndRef = useRef(null);
+  const countryManuallySelectedRef = useRef(false);
   const visitorRef = useRef({
     visitorId: "",
     visitCount: 1,
@@ -178,6 +193,18 @@ export default function UserPage() {
       visitorId: getOrCreateVisitorId(),
       visitCount: incrementLocalCount(VISIT_COUNT_KEY),
     };
+  }, []);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/geo`)
+      .then((res) => res.json())
+      .then((geo) => {
+        const detectedCode = GEO_COUNTRY_TO_DIAL_CODE[(geo.country_code || "").toUpperCase()];
+        if (!detectedCode || countryManuallySelectedRef.current) return;
+        setCountryCode(detectedCode);
+        setCountryFlag(COUNTRY_OPTIONS[detectedCode]?.flag || "🌐");
+      })
+      .catch((err) => console.error("Geo detection error:", err));
   }, []);
 
   const handleUserSubmit = () => {
@@ -478,6 +505,12 @@ export default function UserPage() {
     system: "text-center text-xs text-muted-foreground",
   };
 
+  const handleCountryChange = (value) => {
+    countryManuallySelectedRef.current = true;
+    setCountryCode(value);
+    setCountryFlag(COUNTRY_OPTIONS[value]?.flag || "🌐");
+  };
+
   return (
     <div className="relative">
       {/* BLUR EVERYTHING WHEN DIALOG OPEN */}
@@ -501,16 +534,16 @@ export default function UserPage() {
             <div className="flex items-center gap-2">
               <Globe className="w-4 h-4 text-muted-foreground" />
 
-              <Select value={countryCode} onValueChange={setCountryCode}>
+              <Select value={countryCode} onValueChange={handleCountryChange}>
                 <SelectTrigger className="w-[120px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="91">🇮🇳 +91</SelectItem>
-                  <SelectItem value="1">🇺🇸 +1</SelectItem>
-                  <SelectItem value="44">🇬🇧 +44</SelectItem>
-                  <SelectItem value="61">🇦🇺 +61</SelectItem>
-                  <SelectItem value="971">🇦🇪 +971</SelectItem>
+                  {Object.entries(COUNTRY_OPTIONS).map(([value, option]) => (
+                    <SelectItem key={value} value={value}>
+                      {option.flag} +{value}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 
