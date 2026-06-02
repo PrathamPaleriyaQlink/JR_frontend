@@ -49,6 +49,50 @@ export default function AdminLayout() {
     location.pathname.startsWith(path) ? "default" : "ghost";
   const getTabVariant1 = (path) =>
     location.pathname === path ? "default" : "ghost";
+  const navItems = [
+    {
+      to: "/admin",
+      label: "Dashboard",
+      icon: Home,
+      variant: getTabVariant1("/admin"),
+    },
+    {
+      to: "/admin/active",
+      label: "Active Web Chat",
+      icon: UserCheck,
+      variant: getTabVariant("/admin/active"),
+    },
+    {
+      to: "/admin/users",
+      label: "Web Chat",
+      icon: BotMessageSquare,
+      variant: getTabVariant("/admin/users"),
+    },
+    {
+      to: "/admin/kb",
+      label: "Knowledge Base",
+      icon: Brain,
+      variant: getTabVariant("/admin/kb"),
+    },
+    {
+      to: "/admin/whatsapp",
+      label: "WhatsApp",
+      icon: MessageCircle,
+      variant: getTabVariant("/admin/whatsapp"),
+    },
+    {
+      to: "/admin/leads",
+      label: "Leads",
+      icon: Target,
+      variant: getTabVariant("/admin/leads"),
+    },
+    {
+      to: "/admin/products",
+      label: "Products",
+      icon: Package,
+      variant: getTabVariant("/admin/products"),
+    },
+  ];
 
   return (
     <div className="flex h-screen bg-background text-foreground">
@@ -68,82 +112,16 @@ export default function AdminLayout() {
 
         {/* Sidebar Nav */}
         <div className="flex-1 flex flex-col items-center space-y-4">
-          <Link to="/admin">
-            <Button
-              variant={getTabVariant1("/admin")}
-              size="icon"
-              title="Dashboard"
-              aria-label="Dashboard"
-            >
-              <Home className="w-5 h-5" />
-            </Button>
-          </Link>
-
-          <Link to="/admin/active">
-            <Button
-              variant={getTabVariant("/admin/active")}
-              size="icon"
-              title="Active Web Chat"
-              aria-label="Active Web Chat"
-            >
-              <UserCheck className="w-5 h-5" />
-            </Button>
-          </Link>
-
-          <Link to="/admin/users">
-            <Button
-              variant={getTabVariant("/admin/users")}
-              size="icon"
-              title="Web Chat"
-              aria-label="Web Chat"
-            >
-              <BotMessageSquare className="w-5 h-5" />
-            </Button>
-          </Link>
-
-          <Link to="/admin/kb">
-            <Button
-              variant={getTabVariant("/admin/kb")}
-              size="icon"
-              title="Knowledge Base"
-              aria-label="Knowledge Base"
-            >
-              <Brain className="w-5 h-5" />
-            </Button>
-          </Link>
-
-          <Link to="/admin/whatsapp">
-            <Button
-              variant={getTabVariant("/admin/whatsapp")}
-              size="icon"
-              title="WhatsApp"
-              aria-label="WhatsApp"
-            >
-              <MessageCircle className="w-5 h-5" />
-            </Button>
-          </Link>
-
-          <Link to="/admin/leads">
-            <Button
-              variant={getTabVariant("/admin/leads")}
-              size="icon"
-              title="Leads"
-              aria-label="Leads"
-            >
-              <Target className="w-5 h-5" />
-            </Button>
-          </Link>
-
-          <Link to="/admin/products">
-            <Button
-              variant={getTabVariant("/admin/products")}
-              size="icon"
-              title="Products"
-              aria-label="Products"
-            >
-              <Package className="w-5 h-5" />
-            </Button>
-          </Link>
+          {navItems.map(({ to, label, icon: Icon, variant }) => (
+            <Link key={to} to={to} className="group relative">
+              <Button variant={variant} size="icon" aria-label={label}>
+                <Icon className="w-5 h-5" />
+              </Button>
+              <span className="pointer-events-none absolute left-12 top-1/2 z-50 -translate-y-1/2 whitespace-nowrap rounded-md border bg-popover px-2 py-1 text-xs font-medium text-popover-foreground opacity-0 shadow-md transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                {label}
+              </span>
+            </Link>
+          ))}
         </div>
 
         {/* Alerts Button In Sidebar */}
