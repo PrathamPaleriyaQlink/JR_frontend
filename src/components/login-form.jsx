@@ -11,6 +11,7 @@ import { User, Loader2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAdmin } from "@/contexts/AdminContext";
 import { useEffect, useState } from "react";
+import { API_WEB_BASE } from "@/lib/api";
 
 export function LoginForm({ className, ...props }) {
   const [empId, setEmpId] = useState("");
@@ -34,7 +35,7 @@ export function LoginForm({ className, ...props }) {
     setError("");
 
     try {
-      const res = await fetch("https://api.vultr3.qlink.in/api/web/login", {
+      const res = await fetch(`${API_WEB_BASE}/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

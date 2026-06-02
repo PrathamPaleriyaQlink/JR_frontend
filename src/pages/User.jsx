@@ -21,9 +21,96 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import ThemeToggle from "@/components/ThemeToggle";
+import { API_WEB_BASE, WS_BASE } from "@/lib/api";
 
-const WS_BASE = "wss://api.vultr3.qlink.in/ws";
-const API_BASE = "https://api.vultr3.qlink.in/api/web";
+const API_BASE = API_WEB_BASE;
+
+const SEARCH_LINK_RE = /\[([^\]]*(?:search|browse|more rugs)[^\]]*)\]\((https?:\/\/[^)]+)\)/gi;
+const PLAIN_SEARCH_URL_RE = /https?:\/\/(?:www\.)?jaipurrugs\.com\/(?:in\/)?search(?:\?[^\s)]+)?/gi;
+const SEARCH_PROMPT_LINE_RE = /(?:you can )?(?:search|browse|show) more (?:products|rugs)(?: here)?:\s*$/i;
+const JR_SEARCH_URL = "https://www.jaipurrugs.com/in/search";
+const VISITOR_ID_KEY = "jr_visitor_id";
+const VISIT_COUNT_KEY = "jr_visit_count";
+const CHAT_COUNT_KEY = "jr_chat_count";
+const COUNTRY_OPTIONS = {
+  "91": { iso: "IN", flag: "🇮🇳", label: "IN +91" },
+  "1": { iso: "US", flag: "🇺🇸", label: "US +1" },
+  "44": { iso: "GB", flag: "🇬🇧", label: "UK +44" },
+  "61": { iso: "AU", flag: "🇦🇺", label: "AU +61" },
+  "971": { iso: "AE", flag: "🇦🇪", label: "AE +971" },
+};
+const GEO_COUNTRY_TO_DIAL_CODE = {
+  IN: "91",
+  US: "1",
+  GB: "44",
+  AU: "61",
+  AE: "971",
+};
+
+function getOrCreateVisitorId() {
+  const existing = localStorage.getItem(VISITOR_ID_KEY);
+  if (existing) return existing;
+  const id = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+  localStorage.setItem(VISITOR_ID_KEY, id);
+  return id;
+}
+
+function incrementLocalCount(key) {
+  const next = Number(localStorage.getItem(key) || "0") + 1;
+  localStorage.setItem(key, String(next));
+  return next;
+}
+
+function getVisiblePageUrl() {
+  if (window.self !== window.top && document.referrer) {
+    return document.referrer;
+  }
+  return window.location.href;
+}
+
+function getTrafficSource(referrer) {
+  const value = (referrer || "").toLowerCase();
+  if (!value) return "Direct";
+  if (value.includes("google.")) return "Google";
+  if (value.includes("instagram.")) return "Instagram";
+  if (value.includes("facebook.") || value.includes("fb.")) return "Facebook";
+  if (value.includes("bing.")) return "Bing";
+  if (value.includes("jaipurrugs.com")) return "Jaipur Rugs Website";
+  return "Referral";
+}
+
+function getGeoUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const geoIp = params.get("geo_ip") || params.get("ip");
+  if (!geoIp) return `${API_BASE}/geo`;
+  return `${API_BASE}/geo?ip=${encodeURIComponent(geoIp.trim())}`;
+}
+
+function extractSearchCta(content) {
+  let searchUrl = null;
+  let searchLabel = "Search More Rugs";
+  let cleaned = content.replace(SEARCH_LINK_RE, (match, label, url) => {
+    if (!searchUrl && /(?:\/search|\bsearch\b|\bbrowse\b|more rugs)/i.test(url + label)) {
+      searchUrl = JR_SEARCH_URL;
+      searchLabel = label.replace(/[^\w\s]/g, "").trim() || "Search More Rugs";
+    }
+    return "";
+  });
+
+  cleaned = cleaned
+    .replace(PLAIN_SEARCH_URL_RE, (url) => {
+      if (!searchUrl) searchUrl = JR_SEARCH_URL;
+      return "";
+    })
+    .split("\n")
+    .map((line) => line.replace(SEARCH_PROMPT_LINE_RE, "").trimEnd())
+    .filter((line) => line.trim())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  return { text: cleaned, searchUrl, searchLabel };
+}
 
 const markdownComponents = {
   img: ({ src, alt }) => (
@@ -79,6 +166,7 @@ const markdownComponents = {
 };
 
 export default function UserPage() {
+  const isInIframe = window.self !== window.top;
   const [sessionId, setSessionId] = useState("");
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState("");
@@ -86,6 +174,7 @@ export default function UserPage() {
   const [countryFlag, setCountryFlag] = useState("🇮🇳");
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [botTyping, setBotTyping] = useState(false);
+  const [awaitingResponse, setAwaitingResponse] = useState(false);
   const [agentTyping, setAgentTyping] = useState(false);
   const [uplaodImgLoading, setUploadImgLoading] = useState(false);
   const [isSocketConnected, setIsSocketConnected] = useState(false);
@@ -97,6 +186,33 @@ export default function UserPage() {
 
   const wsRef = useRef(null);
   const chatEndRef = useRef(null);
+  const countryManuallySelectedRef = useRef(false);
+  const visitorRef = useRef({
+    visitorId: "",
+    visitCount: 1,
+    chatCount: Number(localStorage.getItem(CHAT_COUNT_KEY) || "0"),
+    chatStartedAt: null,
+  });
+
+  useEffect(() => {
+    visitorRef.current = {
+      ...visitorRef.current,
+      visitorId: getOrCreateVisitorId(),
+      visitCount: incrementLocalCount(VISIT_COUNT_KEY),
+    };
+  }, []);
+
+  useEffect(() => {
+    fetch(getGeoUrl())
+      .then((res) => res.json())
+      .then((geo) => {
+        const detectedCode = GEO_COUNTRY_TO_DIAL_CODE[(geo.country_code || "").toUpperCase()];
+        if (!detectedCode || countryManuallySelectedRef.current) return;
+        setCountryCode(detectedCode);
+        setCountryFlag(COUNTRY_OPTIONS[detectedCode]?.flag || "🌐");
+      })
+      .catch((err) => console.error("Geo detection error:", err));
+  }, []);
 
   const handleUserSubmit = () => {
     if (!userName.trim() || !userEmail.trim()) {
@@ -111,9 +227,43 @@ export default function UserPage() {
     }
 
     const normalizedEmail = userEmail.trim().toLowerCase();
+    visitorRef.current.chatStartedAt = new Date();
+    visitorRef.current.chatCount = incrementLocalCount(CHAT_COUNT_KEY);
     setUserEmail(normalizedEmail);
     setSessionId(normalizedEmail);
     setShowUserDialog(false);
+  };
+
+  const sendVisitorInsights = (eventType = "page_view") => {
+    if (!sessionId) return;
+
+    const now = new Date();
+    const chatStartedAt = visitorRef.current.chatStartedAt || now;
+    const currentPage = getVisiblePageUrl();
+    const referrer = document.referrer || "";
+
+    fetch(`${API_BASE}/visitor-insights/${encodeURIComponent(sessionId)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event_type: eventType,
+        visitor_id: visitorRef.current.visitorId,
+        user_name: userName,
+        current_page: currentPage,
+        current_page_title: document.title || "",
+        referrer,
+        traffic_source: getTrafficSource(referrer),
+        visit_count: visitorRef.current.visitCount,
+        chat_count: visitorRef.current.chatCount || 1,
+        chat_started_at: chatStartedAt.toISOString(),
+        last_seen_at: now.toISOString(),
+        chat_duration_seconds: Math.max(
+          0,
+          Math.round((now.getTime() - chatStartedAt.getTime()) / 1000)
+        ),
+        country_code: countryCode,
+      }),
+    }).catch((err) => console.error("Visitor insights error:", err));
   };
 
   useEffect(() => {
@@ -126,6 +276,7 @@ export default function UserPage() {
   useEffect(() => {
     if (!sessionId) return;
     setLoadingHistory(true);
+    sendVisitorInsights("chat_start");
 
     fetch(`${API_BASE}/chat_history/${encodeURIComponent(sessionId)}`)
       .then((res) => {
@@ -147,6 +298,19 @@ export default function UserPage() {
       .catch((err) => console.error(err))
       .finally(() => setLoadingHistory(false));
   }, [sessionId]);
+
+  useEffect(() => {
+    if (!sessionId || showUserDialog) return;
+    const interval = setInterval(() => sendVisitorInsights("heartbeat"), 30000);
+    const handleVisibility = () => sendVisitorInsights("visibility");
+    window.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("pagehide", handleVisibility);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("pagehide", handleVisibility);
+    };
+  }, [sessionId, showUserDialog, userName, countryCode]);
 
   useEffect(() => {
     if (!sessionId || !countryCode || showUserDialog) return;
@@ -195,6 +359,7 @@ export default function UserPage() {
       }
 
       if (parsed.type === "message") {
+        setAwaitingResponse(false);
         addMessage({ role: parsed.from, content: parsed.content });
         return;
       }
@@ -233,7 +398,7 @@ export default function UserPage() {
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, botTyping]);
+  }, [messages, botTyping, awaitingResponse]);
 
   const sendMessage = () => {
     if (
@@ -252,6 +417,7 @@ export default function UserPage() {
     );
 
     addMessage({ role: "user", content: message });
+    setAwaitingResponse(true);
     setMessage("");
   };
 
@@ -302,6 +468,7 @@ export default function UserPage() {
 
       // UI MESSAGE
       addMessage({ role: "user", content: `![image](${final_url})` });
+      setAwaitingResponse(true);
     } catch (err) {
       console.error("Image upload error:", err);
     } finally {
@@ -345,6 +512,12 @@ export default function UserPage() {
     system: "text-center text-xs text-muted-foreground",
   };
 
+  const handleCountryChange = (value) => {
+    countryManuallySelectedRef.current = true;
+    setCountryCode(value);
+    setCountryFlag(COUNTRY_OPTIONS[value]?.flag || "🌐");
+  };
+
   return (
     <div className="relative">
       {/* BLUR EVERYTHING WHEN DIALOG OPEN */}
@@ -368,16 +541,16 @@ export default function UserPage() {
             <div className="flex items-center gap-2">
               <Globe className="w-4 h-4 text-muted-foreground" />
 
-              <Select value={countryCode} onValueChange={setCountryCode}>
+              <Select value={countryCode} onValueChange={handleCountryChange}>
                 <SelectTrigger className="w-[120px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="91">🇮🇳 +91</SelectItem>
-                  <SelectItem value="1">🇺🇸 +1</SelectItem>
-                  <SelectItem value="44">🇬🇧 +44</SelectItem>
-                  <SelectItem value="61">🇦🇺 +61</SelectItem>
-                  <SelectItem value="971">🇦🇪 +971</SelectItem>
+                  {Object.entries(COUNTRY_OPTIONS).map(([value, option]) => (
+                    <SelectItem key={value} value={value}>
+                      {option.flag} +{value}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 
@@ -385,15 +558,17 @@ export default function UserPage() {
 
               <ThemeToggle />
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => (window.location.href = "/")}
-                className="flex items-center gap-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Home
-              </Button>
+              {!isInIframe && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => (window.location.href = "/")}
+                  className="flex items-center gap-2"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Home
+                </Button>
+              )}
             </div>
           </div>
 
@@ -459,12 +634,32 @@ export default function UserPage() {
                           roleStyles[msg.role] || "bg-card border"
                         }`}
                       >
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          components={markdownComponents}
-                        >
-                          {msg.content}
-                        </ReactMarkdown>
+                        {msg.role === "assistant" ? (() => {
+                          const { text, searchUrl, searchLabel } = extractSearchCta(msg.content);
+                          return (
+                            <>
+                              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                                {text}
+                              </ReactMarkdown>
+                              {searchUrl && (
+                                <div className="mt-3">
+                                  <a
+                                    href={searchUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center rounded-md border border-amber-500 px-3 py-1.5 text-sm font-semibold text-amber-600 no-underline shadow transition hover:bg-amber-50"
+                                  >
+                                    {searchLabel}
+                                  </a>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })() : (
+                          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                            {msg.content}
+                          </ReactMarkdown>
+                        )}
                       </div>
 
                       {msg.role === "user" && (
@@ -476,7 +671,7 @@ export default function UserPage() {
                   );
                 })}
 
-                {botTyping && (
+                {(botTyping || awaitingResponse) && (
                   <div className="flex justify-start">
                     <img
                       src="/ai_avatar.webp"
@@ -541,7 +736,7 @@ export default function UserPage() {
                 </Button>
               </div>
               <Button onClick={sendMessage} size="icon" className="shadow-md">
-                {botTyping ? (
+                {botTyping || awaitingResponse ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <Send className="w-4 h-4" />

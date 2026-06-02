@@ -1,10 +1,14 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { API_WEB_BASE } from "@/lib/api";
 
 const AlertContext = createContext();
 
 const playAlertSound = () => {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === "suspended") {
+      ctx.resume();
+    }
     const beep = (startTime, freq, duration) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -12,36 +16,57 @@ const playAlertSound = () => {
       gain.connect(ctx.destination);
       osc.type = "sine";
       osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.4, startTime);
+      gain.gain.setValueAtTime(0.85, startTime);
       gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
       osc.start(startTime);
       osc.stop(startTime + duration);
     };
     const t = ctx.currentTime;
-    beep(t, 880, 0.18);
-    beep(t + 0.25, 1100, 0.18);
+    beep(t, 880, 0.22);
+    beep(t + 0.28, 1240, 0.22);
+    beep(t + 0.56, 880, 0.22);
+
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      const voiceAlert = new SpeechSynthesisUtterance("Incoming chat");
+      voiceAlert.volume = 1;
+      voiceAlert.rate = 0.95;
+      window.speechSynthesis.speak(voiceAlert);
+    }
   } catch {
-    // Audio API blocked or unavailable — fail silently
+    // Audio API blocked or unavailable; fail silently.
   }
 };
 
 export const AlertProvider = ({ children }) => {
   const [alerts, setAlerts] = useState([]);
-  const prevCountRef = useRef(0);
+  const [newAlertSignal, setNewAlertSignal] = useState(0);
+  const seenAlertIdsRef = useRef(new Set());
   const initializedRef = useRef(false);
+  const activeAlertIdsRef = useRef(new Set());
+
+  const isAdminRoute = () => window.location.pathname.startsWith("/admin");
 
   const fetchAlerts = async () => {
     try {
-      const res = await fetch("https://api.vultr3.qlink.in/api/web/alerts/all");
+      const res = await fetch(`${API_WEB_BASE}/alerts/all`);
       const data = await res.json();
-      const newAlerts = data || [];
+      const newAlerts = (data || []).sort(
+        (a, b) => (b.created_at || 0) - (a.created_at || 0)
+      );
+      const newIds = new Set(newAlerts.map((alert) => alert._id));
+      const hasNewAlert = newAlerts.some(
+        (alert) => !seenAlertIdsRef.current.has(alert._id)
+      );
 
-      // Play sound only after first load and only when count increases
-      if (initializedRef.current && newAlerts.length > prevCountRef.current) {
+      // Play sound only after first load and only when a new alert appears.
+      if (isAdminRoute() && initializedRef.current && hasNewAlert) {
         playAlertSound();
+        setNewAlertSignal((prev) => prev + 1);
       }
 
-      prevCountRef.current = newAlerts.length;
+      seenAlertIdsRef.current = newIds;
+      activeAlertIdsRef.current = newIds;
       initializedRef.current = true;
       setAlerts(newAlerts);
     } catch (err) {
@@ -51,11 +76,12 @@ export const AlertProvider = ({ children }) => {
 
   const deleteAlert = async (id) => {
     try {
-      await fetch(`https://api.vultr3.qlink.in/api/web/alerts/${id}`, {
+      await fetch(`${API_WEB_BASE}/alerts/${id}`, {
         method: "DELETE",
       });
       setAlerts((prev) => prev.filter((a) => a._id !== id));
-      prevCountRef.current = Math.max(0, prevCountRef.current - 1);
+      seenAlertIdsRef.current.delete(id);
+      activeAlertIdsRef.current.delete(id);
     } catch (err) {
       console.error("Error deleting alert", err);
     }
@@ -63,12 +89,23 @@ export const AlertProvider = ({ children }) => {
 
   useEffect(() => {
     fetchAlerts();
-    const interval = setInterval(fetchAlerts, 30000);
+    const interval = setInterval(fetchAlerts, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (isAdminRoute() && activeAlertIdsRef.current.size > 0) {
+        playAlertSound();
+      }
+    }, 12000);
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <AlertContext.Provider value={{ alerts, deleteAlert, fetchAlerts }}>
+    <AlertContext.Provider
+      value={{ alerts, deleteAlert, fetchAlerts, newAlertSignal }}
+    >
       {children}
     </AlertContext.Provider>
   );

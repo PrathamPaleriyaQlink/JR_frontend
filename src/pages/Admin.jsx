@@ -10,9 +10,9 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { API_WEB_BASE, WS_BASE } from "@/lib/api";
 
-const WS_BASE = "wss://api.vultr3.qlink.in/ws";
-const API_BASE = "https://api.vultr3.qlink.in";
+const API_BASE = API_WEB_BASE;
 
 export default function Admin() {
   const [selectedTab, setSelectedTab] = useState("active");

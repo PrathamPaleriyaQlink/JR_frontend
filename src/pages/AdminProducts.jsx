@@ -13,8 +13,9 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { API_DASHBOARD_BASE } from "@/lib/api";
 
-const API_BASE = "https://jaipurrugs-whatsapp-backend.vercel.app/api";
+const API_BASE = API_DASHBOARD_BASE;
 const PAGE_SIZE = 50;
 const EMPTY_FORM = {
   name: "",
