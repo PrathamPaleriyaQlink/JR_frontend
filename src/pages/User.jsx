@@ -79,6 +79,13 @@ function getTrafficSource(referrer) {
   return "Referral";
 }
 
+function getGeoUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const geoIp = params.get("geo_ip") || params.get("ip");
+  if (!geoIp) return `${API_BASE}/geo`;
+  return `${API_BASE}/geo?ip=${encodeURIComponent(geoIp.trim())}`;
+}
+
 function extractSearchCta(content) {
   let searchUrl = null;
   let searchLabel = "Search More Rugs";
@@ -196,7 +203,7 @@ export default function UserPage() {
   }, []);
 
   useEffect(() => {
-    fetch(`${API_BASE}/geo`)
+    fetch(getGeoUrl())
       .then((res) => res.json())
       .then((geo) => {
         const detectedCode = GEO_COUNTRY_TO_DIAL_CODE[(geo.country_code || "").toUpperCase()];

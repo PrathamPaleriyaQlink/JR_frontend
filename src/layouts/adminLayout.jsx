@@ -97,29 +97,32 @@ export default function AdminLayout() {
   return (
     <div className="flex h-screen bg-background text-foreground">
       {/* Sidebar */}
-      <div className="w-20 bg-card border-r flex flex-col items-center py-6 gap-3">
+      <div className="w-60 bg-card border-r flex flex-col py-6 px-4 gap-3">
         {/* Logo */}
-        <div className="mb-8 flex flex-col items-center">
-          <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-md mb-2">
+        <div className="mb-6 flex items-center gap-3 px-1">
+          <div className="w-11 h-11 bg-primary rounded-xl flex items-center justify-center shadow-md">
             <span className="text-primary-foreground font-bold text-lg">
               JR
             </span>
           </div>
-          <div className="text-xs font-semibold text-muted-foreground">
-            JaipurRugs
+          <div>
+            <div className="text-sm font-semibold leading-tight">Jaipur Rugs</div>
+            <div className="text-xs text-muted-foreground">Admin</div>
           </div>
         </div>
 
         {/* Sidebar Nav */}
-        <div className="flex-1 flex flex-col items-center space-y-4">
+        <div className="flex-1 flex flex-col space-y-2">
           {navItems.map(({ to, label, icon: Icon, variant }) => (
-            <Link key={to} to={to} className="group relative">
-              <Button variant={variant} size="icon" aria-label={label}>
+            <Link key={to} to={to}>
+              <Button
+                variant={variant}
+                aria-label={label}
+                className="w-full justify-start gap-3"
+              >
                 <Icon className="w-5 h-5" />
+                <span>{label}</span>
               </Button>
-              <span className="pointer-events-none absolute left-12 top-1/2 z-50 -translate-y-1/2 whitespace-nowrap rounded-md border bg-popover px-2 py-1 text-xs font-medium text-popover-foreground opacity-0 shadow-md transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-                {label}
-              </span>
             </Link>
           ))}
         </div>
@@ -128,10 +131,10 @@ export default function AdminLayout() {
         <Link to="/admin/alerts" className="relative">
           <Button
             variant={getTabVariant("/admin/alerts")}
-            className={"bg-red-100 hover:bg-red-200 cursor-pointer"}
-            size="icon"
+            className={"w-full justify-start gap-3 bg-red-100 hover:bg-red-200 cursor-pointer"}
           >
-            <Bell className="w-7 h-7 text-red-800" />
+            <Bell className="w-5 h-5 text-red-800" />
+            <span>Alerts</span>
           </Button>
 
           {alerts.length > 0 && (
@@ -141,14 +144,18 @@ export default function AdminLayout() {
           )}
         </Link>
 
-        <ThemeToggle />
+        <div className="flex items-center gap-3 rounded-md px-3 py-2 text-sm">
+          <ThemeToggle />
+          <span>Theme</span>
+        </div>
 
         <Button
           variant="outline"
-          size="icon"
+          className="w-full justify-start gap-3"
           onClick={() => (window.location.href = "/")}
         >
           <LogOutIcon className="w-5 h-5" />
+          <span>Logout</span>
         </Button>
       </div>
 

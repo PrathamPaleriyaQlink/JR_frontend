@@ -45,6 +45,8 @@ export const AlertProvider = ({ children }) => {
   const initializedRef = useRef(false);
   const activeAlertIdsRef = useRef(new Set());
 
+  const isAdminRoute = () => window.location.pathname.startsWith("/admin");
+
   const fetchAlerts = async () => {
     try {
       const res = await fetch(`${API_WEB_BASE}/alerts/all`);
@@ -58,7 +60,7 @@ export const AlertProvider = ({ children }) => {
       );
 
       // Play sound only after first load and only when a new alert appears.
-      if (initializedRef.current && hasNewAlert) {
+      if (isAdminRoute() && initializedRef.current && hasNewAlert) {
         playAlertSound();
         setNewAlertSignal((prev) => prev + 1);
       }
@@ -93,7 +95,7 @@ export const AlertProvider = ({ children }) => {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      if (activeAlertIdsRef.current.size > 0) {
+      if (isAdminRoute() && activeAlertIdsRef.current.size > 0) {
         playAlertSound();
       }
     }, 12000);
