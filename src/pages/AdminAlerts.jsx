@@ -15,7 +15,14 @@ const AdminAlerts = () => {
   const { alerts, deleteAlert } = useAlerts();
   const navigate = useNavigate();
   const goToChat = async (alert) => {
-    navigate(`/admin/whatsapp?phone=${encodeURIComponent(alert.session_id || "")}`);
+    const sid = (alert.session_id || "").trim();
+    // WhatsApp phone numbers are purely numeric; web session IDs are not
+    const isWhatsApp = /^\d+$/.test(sid);
+    if (isWhatsApp) {
+      navigate(`/admin/whatsapp?phone=${encodeURIComponent(sid)}`);
+    } else {
+      navigate(`/admin/active?session=${encodeURIComponent(sid)}`);
+    }
     await deleteAlert(alert._id);
   };
   const formatTime = (createdAt) => {
