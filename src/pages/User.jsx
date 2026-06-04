@@ -505,8 +505,11 @@ export default function UserPage() {
     );
   };
 
+  const userAccentClass = "bg-[#C29C96] text-[#1b1413]";
+  const userAccentHoverClass = "hover:bg-[#b78f89]";
+
   const roleStyles = {
-    user: "bg-primary text-primary-foreground rounded-br-sm",
+    user: `${userAccentClass} rounded-br-sm`,
     assistant: "bg-muted border rounded-bl-sm prose prose-sm dark:prose-invert",
     agent: "bg-gray-500 text-white rounded-bl-sm",
     system: "text-center text-xs text-muted-foreground",
@@ -526,7 +529,7 @@ export default function UserPage() {
           {/* HEADER */}
           <div className="flex items-center justify-between px-6 py-4 border-b bg-card shadow-sm">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary text-primary-foreground rounded-full flex items-center justify-center">
+              <div className={`w-10 h-10 ${userAccentClass} rounded-full flex items-center justify-center`}>
                 <User className="w-5 h-5" />
               </div>
 
@@ -581,8 +584,8 @@ export default function UserPage() {
             ) : messages.length === 0 ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
-                  <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-3">
-                    <Bot className="w-8 h-8 text-muted-foreground" />
+                  <div className="w-16 h-16 bg-[#C29C96]/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <Bot className="w-8 h-8 text-[#C29C96]" />
                   </div>
                   <p className="text-muted-foreground text-sm">
                     Say hi to start the conversation ✨
@@ -663,7 +666,7 @@ export default function UserPage() {
                       </div>
 
                       {msg.role === "user" && (
-                        <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0">
+                        <div className={`w-10 h-10 rounded-full ${userAccentClass} flex items-center justify-center shrink-0`}>
                           <User className="w-5 h-5" />
                         </div>
                       )}
@@ -735,7 +738,11 @@ export default function UserPage() {
                   )}
                 </Button>
               </div>
-              <Button onClick={sendMessage} size="icon" className="shadow-md">
+              <Button
+                onClick={sendMessage}
+                size="icon"
+                className={`shadow-md ${userAccentClass} ${userAccentHoverClass}`}
+              >
                 {botTyping || awaitingResponse ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
@@ -772,7 +779,10 @@ export default function UserPage() {
               />
             </div>
 
-            <Button className="w-full mt-4" onClick={handleUserSubmit}>
+            <Button
+              className={`w-full mt-4 ${userAccentClass} ${userAccentHoverClass}`}
+              onClick={handleUserSubmit}
+            >
               Continue
             </Button>
           </div>
