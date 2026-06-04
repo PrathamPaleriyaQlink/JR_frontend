@@ -24,6 +24,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useSearchParams } from "react-router-dom";
 import { useAdmin } from "@/contexts/AdminContext";
 import { API_WEB_BASE, WS_BASE } from "@/lib/api";
 
@@ -72,6 +73,16 @@ export default function AdminActiveUsers() {
   const [uplaodImgLoading, setUploadImgLoading] = useState(false);
 
   const { employeeData } = useAdmin();
+  const [searchParams] = useSearchParams();
+
+  // Auto-select user when navigated from alerts (?session=...)
+  useEffect(() => {
+    const sessionFromUrl = searchParams.get("session");
+    if (sessionFromUrl) {
+      handleUserClick({ session_id: sessionFromUrl });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // Admin WebSocket
   useEffect(() => {

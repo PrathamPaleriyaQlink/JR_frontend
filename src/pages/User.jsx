@@ -425,57 +425,45 @@ export default function UserPage() {
     const file = e.target.files[0];
     if (!file) return;
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-        console.log("WS not ready");
-        return;
+      console.log("WS not ready");
+      return;
     }
 
+    // Show image in chat immediately using a local blob URL so the user
+    // gets instant visual confirmation their image was picked up.
+    const previewUrl = URL.createObjectURL(file);
+    addMessage({ role: "user", content: `![image](${previewUrl})` });
+    setAwaitingResponse(true);
     setUploadImgLoading(true);
-    wsRef.current.send(
-      JSON.stringify({
-        type: "typing",
-        from: "user",
-        is_typing: true,
-      })
-    );
+
+    wsRef.current.send(JSON.stringify({ type: "typing", from: "user", is_typing: true }));
 
     try {
       const res = await fetch(
-        `${API_BASE}/get-upload-url?filename=${encodeURIComponent(
-          file.name
-        )}&email=${sessionId}`
+        `${API_BASE}/get-upload-url?filename=${encodeURIComponent(file.name)}&email=${sessionId}`
       );
       const { upload_url, final_url } = await res.json();
 
       const upload = await fetch(upload_url, {
         method: "PUT",
         body: file,
-        headers: {
-          "Content-Type": file.type,
-        },
+        headers: { "Content-Type": file.type },
       });
 
       if (!upload.ok) throw new Error("Upload failed");
 
-
-      // 🔥 SEND IMAGE MESSAGE
+      // Send the CDN URL to the AI via WebSocket (blob URL is local-only)
       wsRef.current.send(
-        JSON.stringify({
-          type: "message",
-          from: "user",
-          content: `![image](${final_url})`,
-        })
+        JSON.stringify({ type: "message", from: "user", content: `![image](${final_url})` })
       );
-
-      // UI MESSAGE
-      addMessage({ role: "user", content: `![image](${final_url})` });
-      setAwaitingResponse(true);
     } catch (err) {
       console.error("Image upload error:", err);
+      setAwaitingResponse(false);
     } finally {
       setUploadImgLoading(false);
-
-      // 👇 IMPORTANT FIX
       e.target.value = "";
+      // Keep the blob URL alive until the component unmounts; revoking here
+      // would break the preview already displayed in the chat.
     }
   };
 
