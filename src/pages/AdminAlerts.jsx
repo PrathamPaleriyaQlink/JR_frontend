@@ -14,12 +14,19 @@ import { Button } from "@/components/ui/button";
 const AdminAlerts = () => {
   const { alerts, deleteAlert } = useAlerts();
   const navigate = useNavigate();
+
+  const normalizePhoneSession = (value) => {
+    const raw = String(value || "").trim();
+    const digits = raw.replace(/\D/g, "");
+    return digits.length >= 10 ? digits : "";
+  };
+
   const goToChat = async (alert) => {
     const sid = (alert.session_id || "").trim();
-    // WhatsApp phone numbers are purely numeric; web session IDs are not
-    const isWhatsApp = /^\d+$/.test(sid);
-    if (isWhatsApp) {
-      navigate(`/admin/whatsapp?phone=${encodeURIComponent(sid)}`);
+    const whatsappPhone = normalizePhoneSession(sid);
+
+    if (whatsappPhone) {
+      navigate(`/admin/whatsapp?phone=${encodeURIComponent(whatsappPhone)}`);
     } else {
       navigate(`/admin/active?session=${encodeURIComponent(sid)}`);
     }
