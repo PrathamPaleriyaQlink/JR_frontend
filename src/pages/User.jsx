@@ -178,6 +178,7 @@ export default function UserPage() {
   const [agentTyping, setAgentTyping] = useState(false);
   const [uplaodImgLoading, setUploadImgLoading] = useState(false);
   const [isSocketConnected, setIsSocketConnected] = useState(false);
+  const [geoReady, setGeoReady] = useState(false);
 
   // NEW STATES - NOT STORED ANYWHERE
   const [showUserDialog, setShowUserDialog] = useState(true);
@@ -207,11 +208,13 @@ export default function UserPage() {
       .then((res) => res.json())
       .then((geo) => {
         const detectedCode = GEO_COUNTRY_TO_DIAL_CODE[(geo.country_code || "").toUpperCase()];
-        if (!detectedCode || countryManuallySelectedRef.current) return;
-        setCountryCode(detectedCode);
-        setCountryFlag(COUNTRY_OPTIONS[detectedCode]?.flag || "🌐");
+        if (detectedCode && !countryManuallySelectedRef.current) {
+          setCountryCode(detectedCode);
+          setCountryFlag(COUNTRY_OPTIONS[detectedCode]?.flag || "🌐");
+        }
       })
-      .catch((err) => console.error("Geo detection error:", err));
+      .catch((err) => console.error("Geo detection error:", err))
+      .finally(() => setGeoReady(true));
   }, []);
 
   const handleUserSubmit = () => {
@@ -313,7 +316,7 @@ export default function UserPage() {
   }, [sessionId, showUserDialog, userName, countryCode]);
 
   useEffect(() => {
-    if (!sessionId || !countryCode || showUserDialog) return;
+    if (!sessionId || !countryCode || showUserDialog || !geoReady) return;
 
     let reconnectTimer;
     let attempts = 0;
@@ -384,7 +387,7 @@ export default function UserPage() {
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (wsRef.current) wsRef.current.close();
     };
-  }, [sessionId, countryCode, showUserDialog, userName]);
+  }, [sessionId, countryCode, showUserDialog, userName, geoReady]);
 
   const addMessage = (msg) => {
     setMessages((prev) => [
