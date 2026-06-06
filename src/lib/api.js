@@ -1,7 +1,7 @@
 const BACKEND_ORIGIN =
   import.meta.env.VITE_BACKEND_URL || "https://jaipurrugs-whatsapp-backend.vercel.app";
 const WS_BACKEND_ORIGIN =
-  import.meta.env.VITE_WS_BACKEND_URL || "https://api.vultr3.qlink.in";
+  import.meta.env.VITE_WS_BACKEND_URL || BACKEND_ORIGIN;
 
 const trimTrailingSlash = (value) => value.replace(/\/+$/, "");
 
