@@ -38,13 +38,13 @@ API_WEB_BASE       = https://jaipurrugs-whatsapp-backend.vercel.app/api/web
 API_DASHBOARD_BASE = https://jaipurrugs-whatsapp-backend.vercel.app/api
 ```
 
-Realtime web chat sockets go to the VPS WebSocket backend:
+Realtime web chat sockets default to the same backend:
 
 ```text
-WS_BASE = wss://api.vultr3.qlink.in/ws
+WS_BASE = wss://jaipurrugs-whatsapp-backend.vercel.app/ws
 ```
 
-This split is intentional. Vercel is used for HTTP APIs, while the VPS is used for long-running WebSocket connections.
+Set `VITE_WS_BACKEND_URL` only when sockets must be routed to a separate host.
 
 ## Production Flow
 
