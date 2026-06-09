@@ -236,15 +236,21 @@ export default function UserPage() {
 
   const sendVisitorInsights = (eventType = "page_view") => {
     if (!sessionId) return;
+    if (eventType === "heartbeat" && document.hidden) return;
 
     const now = new Date();
     const chatStartedAt = visitorRef.current.chatStartedAt || now;
     const currentPage = getVisiblePageUrl();
     const referrer = document.referrer || "";
+    const isoCountry = COUNTRY_OPTIONS[countryCode]?.iso || countryCode;
 
     fetch(`${API_BASE}/visitor-insights/${encodeURIComponent(sessionId)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal:
+        typeof AbortSignal.timeout === "function"
+          ? AbortSignal.timeout(8000)
+          : undefined,
       body: JSON.stringify({
         event_type: eventType,
         visitor_id: visitorRef.current.visitorId,
@@ -261,9 +267,11 @@ export default function UserPage() {
           0,
           Math.round((now.getTime() - chatStartedAt.getTime()) / 1000)
         ),
-        country_code: countryCode,
+        country_code: isoCountry,
       }),
-    }).catch((err) => console.error("Visitor insights error:", err));
+    }).catch(() => {
+      // Backend may be slow or unreachable; chat should keep working.
+    });
   };
 
   useEffect(() => {
@@ -301,7 +309,7 @@ export default function UserPage() {
 
   useEffect(() => {
     if (!sessionId || showUserDialog) return;
-    const interval = setInterval(() => sendVisitorInsights("heartbeat"), 30000);
+    const interval = setInterval(() => sendVisitorInsights("heartbeat"), 60000);
     const handleVisibility = () => sendVisitorInsights("visibility");
     window.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener("pagehide", handleVisibility);
