@@ -486,18 +486,16 @@ export default function UserPage() {
     wsRef.current.send(JSON.stringify({ type: "typing", from: "user", is_typing: true }));
 
     try {
+      const formData = new FormData();
+      formData.append("file", file);
+
       const res = await fetch(
-        `${API_BASE}/get-upload-url?filename=${encodeURIComponent(file.name)}&email=${sessionId}`
+        `${API_BASE}/upload-image?email=${encodeURIComponent(sessionId)}`,
+        { method: "POST", body: formData }
       );
-      const { upload_url, final_url } = await res.json();
-
-      const upload = await fetch(upload_url, {
-        method: "PUT",
-        body: file,
-        headers: { "Content-Type": file.type },
-      });
-
-      if (!upload.ok) throw new Error("Upload failed");
+      if (!res.ok) throw new Error("Upload failed");
+      const { final_url } = await res.json();
+      if (!final_url) throw new Error("Upload failed");
 
       // Send the CDN URL to the AI via WebSocket (blob URL is local-only)
       wsRef.current.send(
