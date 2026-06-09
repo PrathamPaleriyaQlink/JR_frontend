@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { API_WEB_BASE } from "@/lib/api";
+import { API_WEB_BASE, parseJsonResponse } from "@/lib/api";
 
 const AlertContext = createContext();
 
@@ -50,7 +50,7 @@ export const AlertProvider = ({ children }) => {
   const fetchAlerts = async () => {
     try {
       const res = await fetch(`${API_WEB_BASE}/alerts/all`);
-      const data = await res.json();
+      const data = await parseJsonResponse(res);
       const newAlerts = (data || []).sort(
         (a, b) => (b.created_at || 0) - (a.created_at || 0)
       );
@@ -70,7 +70,9 @@ export const AlertProvider = ({ children }) => {
       initializedRef.current = true;
       setAlerts(newAlerts);
     } catch (err) {
-      console.error("Error fetching alerts", err);
+      if (import.meta.env.DEV) {
+        console.error("Error fetching alerts", err);
+      }
     }
   };
 
