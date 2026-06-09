@@ -361,8 +361,38 @@ export default function UserPage() {
       if (parsed.type === "debug") {
         console.group(`%c[BOT DEBUG] ${parsed.session_id}`, "color:#6366f1;font-weight:bold");
         console.log("📨 User sent:", parsed.user_message);
-        console.log("🤖 AI replied:", parsed.ai_response);
         console.log("💱 Currency:", parsed.currency, "| 🌍 Country:", parsed.country);
+        if (parsed.tool_calls && parsed.tool_calls.length > 0) {
+          console.group(`%c🔧 Tool Calls (${parsed.tool_calls.length})`, "color:#f59e0b;font-weight:bold");
+          parsed.tool_calls.forEach((tc) => {
+            if (tc.tool === "jaipur_rugs_product_search") {
+              console.group(`%c🛍️ jaipur_rugs_product_search`, "color:#10b981");
+              console.log("  Keyword sent to API:", tc.keyword);
+              console.log("  Currency:", tc.currency || "(default)");
+              console.log("  Products found:", tc.products_found);
+              if (tc.products && tc.products.length > 0) {
+                console.table(tc.products);
+              }
+              console.groupEnd();
+            } else if (tc.tool === "search_kb") {
+              console.group(`%c📚 search_kb`, "color:#3b82f6");
+              console.log("  Query:", tc.query);
+              console.log("  Results found:", tc.results_found);
+              console.groupEnd();
+            } else if (tc.tool === "search_store_locations") {
+              console.group(`%c📍 search_store_locations`, "color:#ec4899");
+              console.log("  Query:", tc.query);
+              console.log("  Stores found:", tc.stores_found);
+              console.groupEnd();
+            } else {
+              console.log(`  🔩 ${tc.tool}:`, tc);
+            }
+          });
+          console.groupEnd();
+        } else {
+          console.log("🔧 No tool calls made");
+        }
+        console.log("🤖 AI replied:", parsed.ai_response);
         console.groupEnd();
         return;
       }
