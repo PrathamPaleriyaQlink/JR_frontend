@@ -358,6 +358,15 @@ export default function UserPage() {
         return;
       }
 
+      if (parsed.type === "debug") {
+        console.group(`%c[BOT DEBUG] ${parsed.session_id}`, "color:#6366f1;font-weight:bold");
+        console.log("📨 User sent:", parsed.user_message);
+        console.log("🤖 AI replied:", parsed.ai_response);
+        console.log("💱 Currency:", parsed.currency, "| 🌍 Country:", parsed.country);
+        console.groupEnd();
+        return;
+      }
+
       if (parsed.type === "message") {
         setAwaitingResponse(false);
         addMessage({ role: parsed.from, content: parsed.content });
