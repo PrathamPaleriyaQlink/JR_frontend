@@ -493,7 +493,10 @@ export default function UserPage() {
         `${API_BASE}/upload-image?email=${encodeURIComponent(sessionId)}`,
         { method: "POST", body: formData }
       );
-      if (!res.ok) throw new Error("Upload failed");
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.message || "Upload failed");
+      }
       const { final_url } = await res.json();
       if (!final_url) throw new Error("Upload failed");
 
