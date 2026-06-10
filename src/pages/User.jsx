@@ -29,6 +29,31 @@ const SEARCH_LINK_RE = /\[([^\]]*(?:search|browse|more rugs)[^\]]*)\]\((https?:\
 const PLAIN_SEARCH_URL_RE = /https?:\/\/(?:www\.)?jaipurrugs\.com\/(?:in\/)?search(?:\?[^\s)]+)?/gi;
 const SEARCH_PROMPT_LINE_RE = /(?:you can )?(?:search|browse|show) more (?:products|rugs)(?: here)?:\s*$/i;
 const JR_SEARCH_URL = "https://www.jaipurrugs.com/in/search";
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
+async function compressImageForUpload(file, maxWidth = 1920, quality = 0.85) {
+  if (!file?.type?.startsWith("image/") || file.size <= 1024 * 1024) {
+    return file;
+  }
+
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, maxWidth / Math.max(bitmap.width, bitmap.height));
+  const width = Math.max(1, Math.round(bitmap.width * scale));
+  const height = Math.max(1, Math.round(bitmap.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  canvas.getContext("2d").drawImage(bitmap, 0, 0, width, height);
+  bitmap.close();
+
+  const blob = await new Promise((resolve) => {
+    canvas.toBlob(resolve, "image/jpeg", quality);
+  });
+  if (!blob) return file;
+
+  const baseName = (file.name || "upload").replace(/\.[^.]+$/, "");
+  return new File([blob], `${baseName}.jpg`, { type: "image/jpeg" });
+}
 const VISITOR_ID_KEY = "jr_visitor_id";
 const VISIT_COUNT_KEY = "jr_visit_count";
 const CHAT_COUNT_KEY = "jr_chat_count";
@@ -469,8 +494,8 @@ export default function UserPage() {
   };
 
   const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const rawFile = e.target.files[0];
+    if (!rawFile) return;
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       console.log("WS not ready");
       return;
@@ -478,7 +503,7 @@ export default function UserPage() {
 
     // Show image in chat immediately using a local blob URL so the user
     // gets instant visual confirmation their image was picked up.
-    const previewUrl = URL.createObjectURL(file);
+    const previewUrl = URL.createObjectURL(rawFile);
     addMessage({ role: "user", content: `![image](${previewUrl})` });
     setAwaitingResponse(true);
     setUploadImgLoading(true);
@@ -486,19 +511,29 @@ export default function UserPage() {
     wsRef.current.send(JSON.stringify({ type: "typing", from: "user", is_typing: true }));
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
+      const file = await compressImageForUpload(rawFile);
+      if (file.size > MAX_UPLOAD_BYTES) {
+        throw new Error("Image must be 10 MB or smaller");
+      }
 
+      const contentType = file.type || "application/octet-stream";
       const res = await fetch(
-        `${API_BASE}/upload-image?email=${encodeURIComponent(sessionId)}`,
-        { method: "POST", body: formData }
+        `${API_BASE}/get-upload-url?filename=${encodeURIComponent(file.name)}&email=${encodeURIComponent(sessionId)}&content_type=${encodeURIComponent(contentType)}`
       );
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
         throw new Error(errBody.message || "Upload failed");
       }
-      const { final_url } = await res.json();
-      if (!final_url) throw new Error("Upload failed");
+      const { upload_url, final_url } = await res.json();
+      if (!upload_url || !final_url) throw new Error("Upload failed");
+
+      // Upload directly to R2 — avoids nginx 413 on /upload-image.
+      const upload = await fetch(upload_url, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": contentType },
+      });
+      if (!upload.ok) throw new Error("Upload failed");
 
       // Send the CDN URL to the AI via WebSocket (blob URL is local-only)
       wsRef.current.send(
