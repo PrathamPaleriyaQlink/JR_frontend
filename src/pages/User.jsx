@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
   Send,
@@ -21,7 +21,12 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import ThemeToggle from "@/components/ThemeToggle";
-import { API_WEB_BASE, WS_BASE } from "@/lib/api";
+import {
+  API_WEB_BASE,
+  WS_BASE,
+  normalizeImageMarkdownContent,
+  normalizePublicImageUrl,
+} from "@/lib/api";
 
 const API_BASE = API_WEB_BASE;
 
@@ -137,10 +142,15 @@ function extractSearchCta(content) {
   return { text: cleaned, searchUrl, searchLabel };
 }
 
+const markdownUrlTransform = (url) => {
+  if (url.startsWith("blob:")) return url;
+  return defaultUrlTransform(normalizePublicImageUrl(url));
+};
+
 const markdownComponents = {
   img: ({ src, alt }) => (
     <img
-      src={src}
+      src={src?.startsWith("blob:") ? src : normalizePublicImageUrl(src)}
       alt={alt || "chat image"}
       className="mt-2 w-full max-w-[420px] max-h-[420px] h-auto object-contain rounded-lg border"
       loading="lazy"
@@ -322,7 +332,7 @@ export default function UserPage() {
         if (data.chat_history) {
           const history = data.chat_history.map((msg) => ({
             role: msg.role || "assistant",
-            content: msg.content,
+            content: normalizeImageMarkdownContent(msg.content),
             timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
           }));
           setMessages(history);
@@ -432,7 +442,10 @@ export default function UserPage() {
 
       if (parsed.type === "message") {
         setAwaitingResponse(false);
-        addMessage({ role: parsed.from, content: parsed.content });
+        addMessage({
+          role: parsed.from,
+          content: normalizeImageMarkdownContent(parsed.content),
+        });
         return;
       }
       };
@@ -524,8 +537,9 @@ export default function UserPage() {
         const errBody = await res.json().catch(() => ({}));
         throw new Error(errBody.message || "Upload failed");
       }
-      const { upload_url, final_url } = await res.json();
-      if (!upload_url || !final_url) throw new Error("Upload failed");
+      const { upload_url, final_url: rawFinalUrl } = await res.json();
+      if (!upload_url || !rawFinalUrl) throw new Error("Upload failed");
+      const final_url = normalizePublicImageUrl(rawFinalUrl);
 
       // Upload directly to R2 — avoids nginx 413 on /upload-image.
       const upload = await fetch(upload_url, {
@@ -535,9 +549,22 @@ export default function UserPage() {
       });
       if (!upload.ok) throw new Error("Upload failed");
 
+      const imageMarkdown = `![image](${final_url})`;
+      // Swap the blob preview for the permanent CDN URL so it survives refresh.
+      setMessages((prev) => {
+        const next = [...prev];
+        for (let i = next.length - 1; i >= 0; i -= 1) {
+          if (next[i].role === "user" && next[i].content?.includes(previewUrl)) {
+            next[i] = { ...next[i], content: imageMarkdown };
+            break;
+          }
+        }
+        return next;
+      });
+
       // Send the CDN URL to the AI via WebSocket (blob URL is local-only)
       wsRef.current.send(
-        JSON.stringify({ type: "message", from: "user", content: `![image](${final_url})` })
+        JSON.stringify({ type: "message", from: "user", content: imageMarkdown })
       );
     } catch (err) {
       console.error("Image upload error:", err);
@@ -712,7 +739,11 @@ export default function UserPage() {
                           const { text, searchUrl, searchLabel } = extractSearchCta(msg.content);
                           return (
                             <>
-                              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={markdownComponents}
+                                urlTransform={markdownUrlTransform}
+                              >
                                 {text}
                               </ReactMarkdown>
                               {searchUrl && (
@@ -730,7 +761,11 @@ export default function UserPage() {
                             </>
                           );
                         })() : (
-                          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={markdownComponents}
+                            urlTransform={markdownUrlTransform}
+                          >
                             {msg.content}
                           </ReactMarkdown>
                         )}
