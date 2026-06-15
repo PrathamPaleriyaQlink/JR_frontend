@@ -363,7 +363,8 @@ export default function UserPage() {
     let shouldReconnect = true;
 
     const connectSocket = () => {
-      const ws = new WebSocket(`${WS_BASE}/user/${encodeURIComponent(sessionId)}/${countryCode}/${encodeURIComponent(userName)}`);
+      const isoCode = COUNTRY_OPTIONS[countryCode]?.iso || countryCode;
+      const ws = new WebSocket(`${WS_BASE}/user/${encodeURIComponent(sessionId)}/${isoCode}/${encodeURIComponent(userName)}`);
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -410,8 +411,8 @@ export default function UserPage() {
           parsed.tool_calls.forEach((tc) => {
             if (tc.tool === "jaipur_rugs_product_search") {
               console.group(`%c🛍️ jaipur_rugs_product_search`, "color:#10b981");
-              console.log("  Keyword (raw from model):", tc.keyword_raw || tc.keyword);
-              console.log("  Keyword sent to Mongo:", tc.keyword_sent_to_api || tc.keyword);
+              console.log("  Keyword (raw from model):", tc.keyword_raw ?? tc.keyword ?? "(missing)");
+              console.log("  Keyword sent to Mongo:", tc.keyword_sent_to_api ?? tc.keyword ?? "(missing)");
               console.log("  Currency:", tc.currency || "(default)");
               if (tc.search_params) {
                 const sp = tc.search_params;
