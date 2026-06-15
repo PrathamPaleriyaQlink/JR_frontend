@@ -410,11 +410,32 @@ export default function UserPage() {
           parsed.tool_calls.forEach((tc) => {
             if (tc.tool === "jaipur_rugs_product_search") {
               console.group(`%c🛍️ jaipur_rugs_product_search`, "color:#10b981");
-              console.log("  Keyword sent to API:", tc.keyword);
+              console.log("  Keyword (raw from model):", tc.keyword_raw || tc.keyword);
+              console.log("  Keyword sent to Mongo:", tc.keyword_sent_to_api || tc.keyword);
               console.log("  Currency:", tc.currency || "(default)");
+              if (tc.search_params) {
+                const sp = tc.search_params;
+                console.group("  📐 Size / filters sent");
+                console.log("    Mongo keyword:", sp.mongo_keyword || "(none)");
+                if (sp.sizes_ft?.length) console.log("    Sizes (ft):", sp.sizes_ft.join(", "));
+                if (sp.sizes_cm?.length) console.log("    Sizes (cm):", sp.sizes_cm.join(", "));
+                if (sp.size_categories?.length) {
+                  console.log("    Size category:", sp.size_categories.join(", "));
+                }
+                if (sp.price_filter) console.log("    Price filter:", sp.price_filter);
+                console.log("    Parsed via:", sp.extraction_source || "regex");
+                console.groupEnd();
+              }
               console.log("  Products found:", tc.products_found);
               if (tc.products && tc.products.length > 0) {
+                console.group("  📦 Output (sizes returned)");
+                tc.products.forEach((p) => {
+                  console.log(
+                    `    • ${p.name || p.SKU} | size=${p.size || "?"} | ${p.display_price || ""}`
+                  );
+                });
                 console.table(tc.products);
+                console.groupEnd();
               }
               console.groupEnd();
             } else if (tc.tool === "search_kb") {
