@@ -11,22 +11,35 @@ import { useNavigate } from "react-router-dom";
 import { useAlerts } from "@/contexts/AlertContext";
 import { Button } from "@/components/ui/button";
 
+const looksLikeWhatsAppPhone = (value) => {
+  const raw = String(value || "").trim();
+  if (!raw) return false;
+  // Web sessions are UUIDs (contain hyphens + hex letters)
+  if (raw.includes("-") && raw.length >= 32) return false;
+  if (/[a-f]/i.test(raw) && raw.includes("-")) return false;
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length < 10) return false;
+  // Pure phone / E.164 — not a UUID digit soup
+  return /^\+?\d[\d\s-]*$/.test(raw) || digits === raw.replace(/\D/g, "");
+};
+
+const resolveAlertChannel = (alert) => {
+  const explicit = String(alert?.channel || "").toLowerCase();
+  if (explicit === "whatsapp" || explicit === "web") return explicit;
+  return looksLikeWhatsAppPhone(alert?.session_id) ? "whatsapp" : "web";
+};
+
 const AdminAlerts = () => {
   const { alerts, deleteAlert } = useAlerts();
   const navigate = useNavigate();
 
-  const normalizePhoneSession = (value) => {
-    const raw = String(value || "").trim();
-    const digits = raw.replace(/\D/g, "");
-    return digits.length >= 10 ? digits : "";
-  };
-
   const goToChat = async (alert) => {
     const sid = (alert.session_id || "").trim();
-    const whatsappPhone = normalizePhoneSession(sid);
+    const channel = resolveAlertChannel(alert);
 
-    if (whatsappPhone) {
-      navigate(`/admin/whatsapp?phone=${encodeURIComponent(whatsappPhone)}`);
+    if (channel === "whatsapp") {
+      const phone = String(sid).replace(/\D/g, "");
+      navigate(`/admin/whatsapp?phone=${encodeURIComponent(phone || sid)}`);
     } else {
       navigate(`/admin/active?session=${encodeURIComponent(sid)}`);
     }
@@ -57,10 +70,11 @@ const AdminAlerts = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[55%]">Alert</TableHead>
-              <TableHead className="w-[20%]">Session</TableHead>
-              <TableHead className="w-[12%]">Queue</TableHead>
-              <TableHead className="w-[15%]">Time</TableHead>
+              <TableHead className="w-[45%]">Alert</TableHead>
+              <TableHead className="w-[12%]">Channel</TableHead>
+              <TableHead className="w-[18%]">Session</TableHead>
+              <TableHead className="w-[10%]">Queue</TableHead>
+              <TableHead className="w-[12%]">Time</TableHead>
               <TableHead className="text-center w-[8%]">Chat</TableHead>
               <TableHead className="text-center w-[5%]">Action</TableHead>
             </TableRow>
@@ -71,6 +85,15 @@ const AdminAlerts = () => {
               <TableRow key={alert._id}>
                 <TableCell className="font-medium">
                   {alert.alert}
+                  {alert.callback_phone ? (
+                    <div className="mt-1 text-xs font-normal text-muted-foreground">
+                      Callback: {alert.callback_phone}
+                    </div>
+                  ) : null}
+                </TableCell>
+
+                <TableCell className="text-muted-foreground capitalize">
+                  {resolveAlertChannel(alert)}
                 </TableCell>
 
                 <TableCell className="text-muted-foreground">
@@ -99,26 +122,17 @@ const AdminAlerts = () => {
                 </TableCell>
 
                 <TableCell className="text-center">
-                  <button
+                  <Button
+                    size="icon"
+                    variant="ghost"
                     onClick={() => deleteAlert(alert._id)}
-                    className="p-2 rounded-lg hover:bg-red-100 transition"
+                    aria-label="Dismiss alert"
                   >
-                    <X className="h-5 w-5 text-red-500" />
-                  </button>
+                    <X className="h-4 w-4" />
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}
-
-            {alerts.length === 0 && (
-              <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="text-center py-10 text-muted-foreground"
-                >
-                  No active alerts
-                </TableCell>
-              </TableRow>
-            )}
           </TableBody>
         </Table>
       </div>

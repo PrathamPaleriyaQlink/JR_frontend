@@ -532,7 +532,11 @@ export default function UserPage() {
     const rawFile = e.target.files[0];
     if (!rawFile) return;
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      console.log("WS not ready");
+      addMessage({
+        role: "assistant",
+        content: "Chat is still connecting. Please wait a moment and try uploading again.",
+      });
+      e.target.value = "";
       return;
     }
 
@@ -540,10 +544,19 @@ export default function UserPage() {
     // gets instant visual confirmation their image was picked up.
     const previewUrl = URL.createObjectURL(rawFile);
     addMessage({ role: "user", content: `![image](${previewUrl})` });
+    addMessage({
+      role: "assistant",
+      content: "_Uploading your image…_",
+      _uploadStatus: true,
+    });
     setAwaitingResponse(true);
     setUploadImgLoading(true);
 
     wsRef.current.send(JSON.stringify({ type: "typing", from: "user", is_typing: true }));
+
+    const clearUploadStatus = () => {
+      setMessages((prev) => prev.filter((m) => !m._uploadStatus));
+    };
 
     try {
       const file = await compressImageForUpload(rawFile);
@@ -574,7 +587,7 @@ export default function UserPage() {
       const imageMarkdown = `![image](${final_url})`;
       // Swap the blob preview for the permanent CDN URL so it survives refresh.
       setMessages((prev) => {
-        const next = [...prev];
+        const next = prev.filter((m) => !m._uploadStatus);
         for (let i = next.length - 1; i >= 0; i -= 1) {
           if (next[i].role === "user" && next[i].content?.includes(previewUrl)) {
             next[i] = { ...next[i], content: imageMarkdown };
@@ -583,6 +596,10 @@ export default function UserPage() {
         }
         return next;
       });
+      addMessage({
+        role: "assistant",
+        content: "Image uploaded. Looking at your design now…",
+      });
 
       // Send the CDN URL to the AI via WebSocket (blob URL is local-only)
       wsRef.current.send(
@@ -590,6 +607,11 @@ export default function UserPage() {
       );
     } catch (err) {
       console.error("Image upload error:", err);
+      clearUploadStatus();
+      addMessage({
+        role: "assistant",
+        content: `Sorry — image upload failed (${err?.message || "unknown error"}). Please try again.`,
+      });
       setAwaitingResponse(false);
     } finally {
       setUploadImgLoading(false);
