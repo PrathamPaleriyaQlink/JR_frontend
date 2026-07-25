@@ -10,6 +10,10 @@ import {
   Loader2,
   UserStarIcon,
   Paperclip,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Bug,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -62,6 +66,43 @@ async function compressImageForUpload(file, maxWidth = 1920, quality = 0.85) {
 const VISITOR_ID_KEY = "jr_visitor_id";
 const VISIT_COUNT_KEY = "jr_visit_count";
 const CHAT_COUNT_KEY = "jr_chat_count";
+const JR_DEBUG_KEY = "jr_debug";
+
+function isJrDebugEnabled() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("debug") === "1") {
+      localStorage.setItem(JR_DEBUG_KEY, "1");
+      return true;
+    }
+    if (params.get("debug") === "0") {
+      localStorage.removeItem(JR_DEBUG_KEY);
+      return false;
+    }
+    return localStorage.getItem(JR_DEBUG_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function buildDiagnoseBundle(debugPayload) {
+  const searchTc = (debugPayload?.tool_calls || []).find(
+    (tc) => tc.tool === "jaipur_rugs_product_search"
+  );
+  const skus = (searchTc?.products || [])
+    .map((p) => p.SKU || p.sku || p.name)
+    .filter(Boolean);
+  return [
+    `session=${debugPayload?.session_id || ""}`,
+    `user=${debugPayload?.user_message || ""}`,
+    `strategy=${searchTc?.strategy || ""}`,
+    `verdict=${searchTc?.search_verdict || ""}`,
+    `fallback_note=${searchTc?.fallback_note || ""}`,
+    `size_relaxed=${searchTc?.size_relaxed ? "true" : "false"}`,
+    `skus=${skus.join(",")}`,
+    `currency=${debugPayload?.currency || searchTc?.currency || ""}`,
+  ].join("\n");
+}
 const COUNTRY_OPTIONS = {
   "91": { iso: "IN", flag: "🇮🇳", label: "IN +91" },
   "1": { iso: "US", flag: "🇺🇸", label: "US +1" },
@@ -213,6 +254,10 @@ export default function UserPage() {
   const [agentTyping, setAgentTyping] = useState(false);
   const [uplaodImgLoading, setUploadImgLoading] = useState(false);
   const [isSocketConnected, setIsSocketConnected] = useState(false);
+  const [debugEnabled] = useState(() => isJrDebugEnabled());
+  const [lastDebug, setLastDebug] = useState(null);
+  const [debugDrawerOpen, setDebugDrawerOpen] = useState(true);
+  const [debugCopied, setDebugCopied] = useState(false);
 
   // NEW STATES - NOT STORED ANYWHERE
   const [showUserDialog, setShowUserDialog] = useState(true);
@@ -403,6 +448,10 @@ export default function UserPage() {
       }
 
       if (parsed.type === "debug") {
+        if (debugEnabled) {
+          setLastDebug(parsed);
+          setDebugDrawerOpen(true);
+        }
         console.group(`%c[BOT DEBUG] ${parsed.session_id}`, "color:#6366f1;font-weight:bold");
         console.log("📨 User sent:", parsed.user_message);
         console.log("💱 Currency:", parsed.currency, "| 🌍 Country:", parsed.country);
@@ -414,6 +463,10 @@ export default function UserPage() {
               console.log("  Keyword (raw from model):", tc.keyword_raw ?? tc.keyword ?? "(missing)");
               console.log("  Keyword sent to Mongo:", tc.keyword_sent_to_api ?? tc.keyword ?? "(missing)");
               console.log("  Currency:", tc.currency || "(default)");
+              console.log("  strategy:", tc.strategy || "(none)");
+              console.log("  search_verdict:", tc.search_verdict || "(none)");
+              console.log("  fallback_note:", tc.fallback_note || "(none)");
+              console.log("  size_relaxed:", tc.size_relaxed ? "true" : "false");
               if (tc.search_params) {
                 const sp = tc.search_params;
                 console.group("  📐 Size / filters sent");
@@ -432,7 +485,7 @@ export default function UserPage() {
                 console.group("  📦 Output (sizes returned)");
                 tc.products.forEach((p) => {
                   console.log(
-                    `    • ${p.name || p.SKU} | size=${p.size || "?"} | ${p.display_price || ""}`
+                    `    • ${p.name || p.SKU} | size=${p.size || "?"} | ${p.display_price || ""} | strategy=${p.search_strategy || tc.strategy || ""}`
                   );
                 });
                 console.table(tc.products);
@@ -443,6 +496,7 @@ export default function UserPage() {
               console.group(`%c📚 search_kb`, "color:#3b82f6");
               console.log("  Query:", tc.query);
               console.log("  Results found:", tc.results_found);
+              if (tc.hits?.length) console.log("  Hits:", tc.hits);
               console.groupEnd();
             } else if (tc.tool === "search_store_locations") {
               console.group(`%c📍 search_store_locations`, "color:#ec4899");
@@ -491,7 +545,7 @@ export default function UserPage() {
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (wsRef.current) wsRef.current.close();
     };
-  }, [sessionId, countryCode, showUserDialog, userName]);
+  }, [sessionId, countryCode, showUserDialog, userName, debugEnabled]);
 
   const addMessage = (msg) => {
     setMessages((prev) => [
@@ -906,6 +960,112 @@ export default function UserPage() {
           </div>
         </div>
       </div>
+
+      {/* Last-turn search/KB debug drawer (?debug=1) */}
+      {debugEnabled && lastDebug && (
+        <div className="fixed bottom-4 right-4 z-40 w-[min(100%-2rem,22rem)] border border-stone-300 bg-stone-50 text-stone-900 shadow-md">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm font-medium border-b border-stone-200"
+            onClick={() => setDebugDrawerOpen((open) => !open)}
+          >
+            <span className="inline-flex items-center gap-2">
+              <Bug className="w-4 h-4" />
+              Search debug
+            </span>
+            {debugDrawerOpen ? (
+              <ChevronDown className="w-4 h-4" />
+            ) : (
+              <ChevronUp className="w-4 h-4" />
+            )}
+          </button>
+          {debugDrawerOpen && (() => {
+            const searchTc = (lastDebug.tool_calls || []).find(
+              (tc) => tc.tool === "jaipur_rugs_product_search"
+            );
+            const kbTc = (lastDebug.tool_calls || []).find(
+              (tc) => tc.tool === "search_kb"
+            );
+            const skus = (searchTc?.products || [])
+              .map((p) => p.SKU || p.sku || p.name)
+              .filter(Boolean);
+            return (
+              <div className="px-3 py-2 text-xs space-y-2 max-h-72 overflow-y-auto">
+                <div>
+                  <div className="font-semibold tracking-wide uppercase text-[10px] text-stone-500">
+                    Last user
+                  </div>
+                  <div className="mt-0.5 break-words">{lastDebug.user_message || "—"}</div>
+                </div>
+                {searchTc ? (
+                  <>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1">
+                      <span>
+                        <span className="text-stone-500">strategy=</span>
+                        {searchTc.strategy || "—"}
+                      </span>
+                      <span>
+                        <span className="text-stone-500">verdict=</span>
+                        {searchTc.search_verdict || "—"}
+                      </span>
+                      {searchTc.size_relaxed ? (
+                        <span className="text-stone-500">size_relaxed</span>
+                      ) : null}
+                    </div>
+                    {searchTc.fallback_note ? (
+                      <div>
+                        <div className="text-stone-500">honesty note</div>
+                        <div className="mt-0.5 break-words">{searchTc.fallback_note}</div>
+                      </div>
+                    ) : null}
+                    <div>
+                      <div className="text-stone-500">SKUs ({skus.length})</div>
+                      <div className="mt-0.5 break-words font-mono">
+                        {skus.length ? skus.join(", ") : "—"}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-stone-500">No product search this turn</div>
+                )}
+                {kbTc ? (
+                  <div>
+                    <div className="text-stone-500">
+                      KB hits ({kbTc.results_found ?? kbTc.hits?.length ?? 0})
+                    </div>
+                    <ul className="mt-0.5 list-disc pl-4 space-y-1">
+                      {(kbTc.hits || []).slice(0, 3).map((hit, idx) => (
+                        <li key={idx} className="break-words">
+                          <span className="font-medium">{hit.label}</span>
+                          {hit.preview ? ` — ${hit.preview}` : ""}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full h-8 text-xs"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(buildDiagnoseBundle(lastDebug));
+                      setDebugCopied(true);
+                      setTimeout(() => setDebugCopied(false), 1500);
+                    } catch (err) {
+                      console.error("Copy diagnose bundle failed", err);
+                    }
+                  }}
+                >
+                  <Copy className="w-3.5 h-3.5 mr-1.5" />
+                  {debugCopied ? "Copied" : "Copy diagnose bundle"}
+                </Button>
+              </div>
+            );
+          })()}
+        </div>
+      )}
 
       {/* BLOCKING DIALOG */}
       {showUserDialog && (
